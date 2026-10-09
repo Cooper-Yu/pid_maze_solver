@@ -1,0 +1,15 @@
+{
+  "run": "/home/cooper/ros2_ws/training_notes/checkpoint18/robot_control_rosbot_xl/code_lab/runtime_logs/task5_survey_20261009_215757",
+  "reached": 14,
+  "max_arrival_error_m": 0.014142,
+  "max_heading_error_rad": 0.001025,
+  "clearance_adjustments": 0,
+  "obstacle_holds": 37,
+  "contacts": {
+    "packets": 113565,
+    "floor_points": 945787,
+    "wall_points": 0,
+    "last_packet": 138914.327895276
+  },
+  "max_scan_age_at_stops": 0.08752620397717692
+}

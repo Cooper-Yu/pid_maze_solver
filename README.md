@@ -72,3 +72,19 @@ stops the task. This local rule can fail in concave spaces; it is not a planner.
 The geometry derives from local body_colision.stl bounds x=[-.166736,.161000],
 y=[-.134700,.134700], plus wheel center x=+/-.085, y=+/-.135,
 radius .05 and thickness .05. Revalidate these assumptions for another model.
+
+## Laser-measured route trial
+
+The original 15-point route remains the default. An optional `waypoint_xy`
+parameter supplies exactly 15 XY pairs in the P01 route frame; all yaw values
+remain the original values. Invalid length, nonfinite values or a moved P01
+origin are rejected before starting. `config/measured_route.yaml` contains a
+separate calibration trial, preserving `docs/reference_points.csv`.
+
+```bash
+ros2 run pid_maze_solver pid_maze_solver --ros-args --params-file \
+  "$(ros2 pkg prefix pid_maze_solver)/share/pid_maze_solver/config/measured_route.yaml"
+```
+
+Read [motion sequence](docs/motion_plan.md) and [laser survey](docs/laser_survey.md)
+for measured distances, tested coordinates and the acceptance boundary.

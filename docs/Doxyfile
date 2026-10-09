@@ -1,7 +1,7 @@
 PROJECT_NAME = "pid_maze_solver"
 PROJECT_BRIEF = "Task5 route, control and interface documentation"
 OUTPUT_DIRECTORY = docs/generated
-INPUT = README.md docs/mainpage.dox docs/api.dox docs/flow.md docs/tooling.md docs/verification.md docs/style_profile.md docs/TEMPLATE_SOURCES.md include src test/README.md
+INPUT = README.md docs/mainpage.dox docs/api.dox docs/flow.md docs/tooling.md docs/verification.md docs/motion_plan.md docs/laser_survey.md docs/style_profile.md docs/TEMPLATE_SOURCES.md include src test/README.md
 RECURSIVE = YES
 FILE_PATTERNS = *.hpp *.h *.cpp *.py *.md *.dox
 USE_MDFILE_AS_MAINPAGE =
@@ -20,3 +20,6 @@ HAVE_DOT = NO
 WARN_IF_UNDOCUMENTED = YES
 WARN_LOGFILE = docs/doxygen_warnings.log
 QUIET = YES
+
+IMAGE_PATH = docs
+HTML_EXTRA_FILES = docs/laser_route.png

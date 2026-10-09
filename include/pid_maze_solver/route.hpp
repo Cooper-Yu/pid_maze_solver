@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <stdexcept>
+#include <vector>
 
 namespace maze
 {
@@ -33,6 +35,30 @@ inline const std::array<Point, 15> route{{
   Point{0.6546225628284905, 0.5981493207015476, 2.3561944901923448},
   Point{0.09066257469445216, 0.5981493207015477, 3.1415926535897931},
 }};
+
+/** @brief Apply optional measured XY coordinates without changing any supplied heading.
+ * @par Coordinate calibration
+ * An empty vector selects the original route. A complete override contains all 15 XY pairs.
+ * @param[in] xy Parameter vector read by PIDMazeSolver's constructor; route-frame meters.
+ * @return Route copied into PIDMazeSolver::route_; the original array and yaw values remain unchanged.
+ * @note Rejects incomplete/nonfinite coordinates and a moved P01 origin before motion starts.
+ */
+inline std::array<Point, 15> with_positions(const std::vector<double> & xy)
+{
+  auto result = route;
+  if (xy.empty()) return result;
+  if (xy.size() != 2 * result.size())
+    throw std::invalid_argument("waypoint_xy requires all 15 XY pairs");
+  for (double v : xy)
+    if (!std::isfinite(v)) throw std::invalid_argument("waypoint_xy must be finite");
+  if (xy[0] != 0 || xy[1] != 0)
+    throw std::invalid_argument("P01 must remain the route origin (0,0)");
+  for (std::size_t i = 0; i < result.size(); ++i) {
+    result[i].x = xy[2 * i];
+    result[i].y = xy[2 * i + 1];
+  }
+  return result;
+}
 
 /** @brief Shortest signed angle.
  * @param[in] angle Difference from current to target in radians.

@@ -42,3 +42,12 @@ Cloud maze run, visual/contact observation and official marking remain pending.
 No Task5 tag or independent learner PASS is created. The route origin must match
 the demonstrated start, and sensor/model geometry must match this environment.
 This sampled local guard is not a global path planner or collision guarantee.
+
+## Follow-up laser calibration
+
+The subsequent nominal-route survey stopped at P06 (OBSTACLE_BLOCKED, exit 2).
+A separate XY-only configuration adjusts P04/P06 without changing yaw. The
+contact-instrumented maze run completed all 14 legs, exit 0, zero classified
+wall contact points, with 37 transient obstacle holds (P06: 11, P08: 8, P14: 18)
+and no clearance translation. This is local evidence, not a cloud acceptance.
+See [full survey](laser_survey.md); six GTests now include override validation.

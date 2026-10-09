@@ -27,6 +27,8 @@ public:
   {
     if (!get_node_parameters_interface()->get_parameter_overrides().count("use_sim_time"))
       set_parameter(rclcpp::Parameter("use_sim_time", true));
+    route_ = maze::with_positions(
+      declare_parameter<std::vector<double>>("waypoint_xy", std::vector<double>{}));
     speed_ = positive("max_speed", 0.12);
     accel_ = positive("max_acceleration", 0.25);
     const double kp = positive("distance_kp", 1.5), ki = nonnegative("distance_ki", 0.0),
@@ -192,7 +194,7 @@ private:
   /** @brief Select a supplied waypoint and transform it once from route coordinates to odom. */
   void target()
   {
-    const auto & p = maze::route[index_];
+    const auto & p = route_[index_];
     tx_ = ox_ + std::cos(oyaw_) * p.x - std::sin(oyaw_) * p.y;
     ty_ = oy_ + std::sin(oyaw_) * p.x + std::cos(oyaw_) * p.y;
     heading_ = oyaw_ + p.yaw;
@@ -460,13 +462,14 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_;        ///< Sole velocity publisher.
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;  ///< Advancing pose feedback.
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;  ///< Wall observations.
-  rclcpp::TimerBase::SharedPtr timer_;         ///< 20ms steady timer, ROS-time PID updates.
-  tf2_ros::Buffer buffer_;                     ///< Scan-to-body transforms.
-  tf2_ros::TransformListener listener_;        ///< TF subscription owner.
-  std::vector<std::array<double, 2>> points_;  ///< Accepted laser points in base_link, meters.
-  std::string frame_;                          ///< Odom frame retained to detect frame changes.
-  std::unique_ptr<maze::AxisPid> px_;          ///< Odom x PID; state reset at each stage.
-  std::unique_ptr<maze::AxisPid> py_;          ///< Odom y PID; state reset at each stage.
+  rclcpp::TimerBase::SharedPtr timer_;              ///< 20ms steady timer, ROS-time PID updates.
+  tf2_ros::Buffer buffer_;                          ///< Scan-to-body transforms.
+  tf2_ros::TransformListener listener_;             ///< TF subscription owner.
+  std::vector<std::array<double, 2>> points_;       ///< Accepted laser points in base_link, meters.
+  std::array<maze::Point, 15> route_{maze::route};  ///< Frozen route XY and unchanged supplied yaw.
+  std::string frame_;                        ///< Odom frame retained to detect frame changes.
+  std::unique_ptr<maze::AxisPid> px_;        ///< Odom x PID; state reset at each stage.
+  std::unique_ptr<maze::AxisPid> py_;        ///< Odom y PID; state reset at each stage.
   std::unique_ptr<maze::AxisPid> yaw_pid_;   ///< Heading PID; radian error and body yaw-rate input.
   Clock::time_point started_{Clock::now()};  ///< Steady startup deadline base.
   Clock::time_point odom_received_{};        ///< Steady time of last accepted odom.
