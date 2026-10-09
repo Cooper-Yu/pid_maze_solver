@@ -25,3 +25,7 @@ The first P10-offset trial completed in 115.61 s but centering cancelled the int
 The retained P10-only version passed twice (108.03 and 106.91 seconds). Final maximum stopped errors were 0.014203 m and 0.001695 rad, below the unchanged 0.015 m / 0.01 rad thresholds. This is local functional evidence only. The two rejected trials expose P14 sensitivity; neither reduced waiting nor higher speed is enabled. Do not infer either change was independently proven to cause the blockage.
 
 Final code: 9 GTests; stale/obstacle/invalid feedback fixtures passed on the same retained control behavior. The rejected speed variant separately passed 11 GTests but failed the maze run. clang-format, clang-tidy, Doxygen and YAML checks passed. No Task5 tag or cloud acceptance.
+
+## Subsequent P14 repair
+
+[P14 corner clearance](p14_clearance.md) now passes two complete runs at 0.12 and 0.11 m/s. The rejected waiting/speed features remain disabled; their historical failed evidence above is unchanged.

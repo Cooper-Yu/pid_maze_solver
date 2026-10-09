@@ -61,3 +61,7 @@ The default now generates poses from named turn/forward/left actions and uses ga
 ## Staged optimization (CP18-C028)
 
 Only the P10 approach offset and per-segment centering switch are retained. Full runs completed in 108.03 and 106.91 seconds with zero classified wall contacts. Duplicate-stop reuse and selected-segment acceleration failed at P14 and were reverted. Full comparison and failure evidence: [optimization report](optimization.md). Existing single-run completion evidence does not certify P14 robustness under timing changes.
+
+## P14 follow-up verification
+
+The route-data repair passed two full contact-instrumented runs at 0.12 and 0.11 m/s, 14 legs and exit 0 each, zero wall contact points. See [P14 report](p14_clearance.md) for commands, limits, point-cloud evidence and 10 passing unit tests. Cloud acceptance remains pending.

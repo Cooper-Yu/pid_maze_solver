@@ -1,0 +1,3 @@
+ros2 run pid_maze_solver pid_maze_solver --ros-args -p max_speed:=0.11
+Runner: /home/cooper/ros2_ws/training_notes/checkpoint18/robot_control_rosbot_xl/code_lab/verify_task5_survey.bash --ros-args -p max_speed:=0.11
+configuration.yaml records named route defaults; command-line overrides above take precedence.

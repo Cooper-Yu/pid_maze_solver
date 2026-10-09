@@ -19,7 +19,10 @@ struct MotionStep
     true};  ///< Allow bilateral centering; disable for a planned turn-clearance offset.
 };
 
-/** @brief Editable distances derived from the measured route, without stored target XY poses. */
+/** @brief Editable distances derived from the measured route, without stored target XY poses.
+ * @note P13_P14 stops 70 mm earlier for corner clearance. P14_P15 compensates both
+ * route axes by 70/sqrt(2) mm to preserve the final nominal destination and headings.
+ */
 inline const std::vector<MotionStep> default_steps{
   {"P01_P02", 0, .35, 0},
   {"P02_P03", -M_PI / 4, .21, 0},
@@ -33,8 +36,8 @@ inline const std::vector<MotionStep> default_steps{
   {"P10_P11", M_PI / 2, .441, 0},
   {"P11_P12", 0, 0, .256},
   {"P12_P13", 0, .528, 0},
-  {"P13_P14", -M_PI / 4, .448, 0},
-  {"P14_P15", M_PI / 4, .564, 0},
+  {"P13_P14", -M_PI / 4, .378, 0},
+  {"P14_P15", M_PI / 4, .6134974746830583, -.0494974746830583},
 };
 
 /** @brief Generate nominal poses cumulatively from relative actions at a zero route origin.

@@ -1,0 +1,90 @@
+diff --git a/config/motion_route.yaml b/config/motion_route.yaml
+index 1d462ac..a48f832 100644
+--- a/config/motion_route.yaml
++++ b/config/motion_route.yaml
+@@ -38,10 +38,11 @@ pid_maze_solver:
+       P09_P10:
+         turn_deg: 0.0
+         forward_m: 0.796
+-        left_m: 0.0
++        left_m: 0.03
++        side_centering: false
+       P10_P11:
+         turn_deg: 90.0
+-        forward_m: 0.471
++        forward_m: 0.441
+         left_m: 0.0
+       P11_P12:
+         turn_deg: 0.0
+@@ -53,9 +54,9 @@ pid_maze_solver:
+         left_m: 0.0
+       P13_P14:
+         turn_deg: -45.0
+-        forward_m: 0.448
++        forward_m: 0.378
+         left_m: 0.0
+       P14_P15:
+         turn_deg: 45.0
+-        forward_m: 0.564
+-        left_m: 0.0
++        forward_m: 0.6134974746830583
++        left_m: -0.0494974746830583
+diff --git a/include/pid_maze_solver/motion.hpp b/include/pid_maze_solver/motion.hpp
+index 1002002..9f62f3f 100644
+--- a/include/pid_maze_solver/motion.hpp
++++ b/include/pid_maze_solver/motion.hpp
+@@ -15,9 +15,14 @@ struct MotionStep
+   double turn;       ///< Signed change from previous planned heading, radians.
+   double forward;    ///< Signed travel along the new heading, meters.
+   double left;       ///< Signed travel left of the new heading, meters; negative is right.
++  bool side_centering{
++    true};  ///< Allow bilateral centering; disable for a planned turn-clearance offset.
+ };
+ 
+-/** @brief Editable distances derived from the measured route, without stored target XY poses. */
++/** @brief Editable distances derived from the measured route, without stored target XY poses.
++ * @note P13_P14 stops 70 mm earlier for corner clearance. P14_P15 compensates both
++ * route axes by 70/sqrt(2) mm to preserve the final nominal destination and headings.
++ */
+ inline const std::vector<MotionStep> default_steps{
+   {"P01_P02", 0, .35, 0},
+   {"P02_P03", -M_PI / 4, .21, 0},
+@@ -27,12 +32,12 @@ inline const std::vector<MotionStep> default_steps{
+   {"P06_P07", 0, 0, -.34},
+   {"P07_P08", 0, .55, 0},
+   {"P08_P09", 0, 0, -.615},
+-  {"P09_P10", 0, .796, 0},
+-  {"P10_P11", M_PI / 2, .471, 0},
++  {"P09_P10", 0, .796, .03, false},
++  {"P10_P11", M_PI / 2, .441, 0},
+   {"P11_P12", 0, 0, .256},
+   {"P12_P13", 0, .528, 0},
+-  {"P13_P14", -M_PI / 4, .448, 0},
+-  {"P14_P15", M_PI / 4, .564, 0},
++  {"P13_P14", -M_PI / 4, .378, 0},
++  {"P14_P15", M_PI / 4, .6134974746830583, -.0494974746830583},
+ };
+ 
+ /** @brief Generate nominal poses cumulatively from relative actions at a zero route origin.
+diff --git a/src/pid_maze_solver.cpp b/src/pid_maze_solver.cpp
+index 4f75390..e64e1fa 100644
+--- a/src/pid_maze_solver.cpp
++++ b/src/pid_maze_solver.cpp
+@@ -93,6 +93,7 @@ private:
+         declare_parameter<double>(prefix + "turn_deg", step.turn * 180 / M_PI) * M_PI / 180;
+       step.forward = declare_parameter<double>(prefix + "forward_m", step.forward);
+       step.left = declare_parameter<double>(prefix + "left_m", step.left);
++      step.side_centering = declare_parameter<bool>(prefix + "side_centering", step.side_centering);
+     }
+     route_ = maze::generate_route(steps_);
+     RCLCPP_INFO(
+@@ -379,7 +380,8 @@ private:
+     center_scan_ = scan_stamp_;
+     const auto & step = steps_[index_ - 1];
+     if (
+-      step.forward < .1 || std::abs(step.left) > .08 || std::abs(maze::wrap(heading_ - yaw_)) > .03)
++      !step.side_centering || step.forward < .1 || std::abs(step.left) > .08 ||
++      std::abs(maze::wrap(heading_ - yaw_)) > .03)
+       return;
+     const auto left = maze::fit_side(points_, 1), right = maze::fit_side(points_, -1);
+     if (!maze::corridor(left, right)) {

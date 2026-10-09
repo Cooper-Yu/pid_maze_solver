@@ -92,3 +92,5 @@ for measured distances, tested coordinates and the acceptance boundary.
 ## Performance experiments
 
 [Staged optimization report](docs/optimization.md) records each full-route trial, rejected variants and current acceptance limits. The retained P10 approach disables bilateral centering for that segment to preserve a 30 mm turn-clearance offset; repulsion and hard obstacle protection remain enabled. Default speed and all stopped holds remain unchanged.
+
+See [P14 corner-clearance repair and verification](docs/p14_clearance.md) for the current route adjustment and its local test limits.

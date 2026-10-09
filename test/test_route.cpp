@@ -90,3 +90,18 @@ TEST(Walls, CenterOnlyWithConsistentTwoSidedSupport)
   EXPECT_FALSE(maze::corridor(left, {true, .6, 0}));
   EXPECT_FALSE(maze::corridor(left, {true, .26, .2}));
 }
+
+TEST(Motion, P14ClearanceChangePreservesFinalDestinationAndHeadings)
+{
+  auto reference = maze::default_steps;
+  reference[12].forward = .448;
+  reference[13].forward = .564;
+  reference[13].left = 0;
+  const auto before = maze::generate_route(reference);
+  const auto after = maze::generate_route(maze::default_steps);
+  EXPECT_NEAR(after[13].x - before[13].x, .07 / std::sqrt(2.0), 1e-10);
+  EXPECT_NEAR(after[13].y - before[13].y, -.07 / std::sqrt(2.0), 1e-10);
+  EXPECT_NEAR(after.back().x, before.back().x, 1e-10);
+  EXPECT_NEAR(after.back().y, before.back().y, 1e-10);
+  for (std::size_t i = 0; i < before.size(); ++i) EXPECT_DOUBLE_EQ(after[i].yaw, before[i].yaw);
+}
