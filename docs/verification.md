@@ -72,3 +72,8 @@ The route-data repair passed two full contact-instrumented runs at 0.12 and 0.11
 Two complete local runs: 88.104/87.585 seconds, 14 legs, exit 0, zero obstacle-hold logs and zero classified wall contacts. Fourteen GoogleTests and all three runtime guard fixtures pass. See [staged evidence and limits](performance90.md). Cloud acceptance remains pending; no Task5 tag.
 
 The final YAML matches the C++ route defaults; the parity check passes and rejects the historical 0.558/0.528 m drift. Earlier YAML trial snapshots preserve that difference.
+
+
+## CP18-C031 terminal clockwise turn
+
+Full default route plus terminal action completed in 94.825 s, exit 0, wall contact points 0. Terminal turn 6.640 s, error -0.006940 rad, all linear commands zero. Earlier P10 had four short obstacle holds; terminal action had none. See [full evidence](final_turn.md). Fifteen unit tests and three runtime guard fixtures passed; cloud acceptance pending.

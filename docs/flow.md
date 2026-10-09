@@ -17,3 +17,18 @@ flowchart TD
   S --> D
   X[Feedback / clock / obstacle / deadline fault] --> Y[Zero velocity and failure exit]
 ```
+
+
+## Terminal action
+
+```mermaid
+flowchart LR
+  A[P15 reached and stopped] --> B{Final clockwise turn enabled?}
+  B -->|yes| C[Accumulate clockwise half-turn with odom feedback]
+  C --> D[Confirm yaw and stopped velocities]
+  D --> E[Zero command and exit]
+  B -->|no| E
+```
+
+Partial last_point trials finish before this branch. Terminal obstacle protection
+remains active, but clearance translation is disabled.

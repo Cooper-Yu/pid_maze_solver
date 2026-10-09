@@ -102,3 +102,20 @@ See [current performance results and exact limits](docs/performance90.md).
 The [earlier optimization trials](docs/optimization.md) and
 [P14 repair](docs/p14_clearance.md) retain historical results, including rejected
 variants. Hard protection thresholds and warning publication remain enabled.
+
+
+## Final clockwise half-turn
+
+After P15 is reached and stopped, the default full route rotates clockwise by
+180 degrees from its actual arrival heading, confirms the stopped heading, then
+exits. It does not reinitialize the route or command translation during this
+action. Signed odom increments preserve the requested direction across +/-pi;
+small reverse corrections after overshoot are permitted. The existing yaw PID,
+scan/odom watchdogs, stage deadline and collision guard remain active. A blocked
+terminal turn stops and faults; clearance translation is disabled for this action.
+
+`final_clockwise_turn` defaults to true in both route modes. Use
+`--ros-args -p final_clockwise_turn:=false` only to reproduce the older route-only
+behavior. A partial `last_point` trial does not append this action. The previous
+sub-90-second measurements exclude this newly added turn; the full new task has
+no 90-second acceptance limit. See [terminal turn verification](docs/final_turn.md).

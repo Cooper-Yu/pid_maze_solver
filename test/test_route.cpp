@@ -154,3 +154,20 @@ TEST(Guard, CruisePreviewSeparatesParallelWallFromClosingCorner)
   EXPECT_GT(maze::translation_clearance({{-.30, 0}}, .12, 0), .04);
   EXPECT_LT(maze::translation_clearance({{0, -.25}}, 0, -.12), .04);
 }
+
+TEST(Motion, ClockwiseHalfTurnKeepsDirectionAcrossBranchCutAndInitialNoise)
+{
+  double progress = maze::accumulate_rotation(0, -M_PI + .001, M_PI - .001);
+  EXPECT_NEAR(progress, -.002, 1e-12);
+  EXPECT_LT(-M_PI - maze::accumulate_rotation(0, 0, .001), -M_PI);
+  double previous = 3.13;
+  progress = 0;
+  for (int i = 1; i <= 100; ++i) {
+    const double current = maze::wrap(3.13 - M_PI * i / 100);
+    progress = maze::accumulate_rotation(progress, previous, current);
+    previous = current;
+  }
+  EXPECT_NEAR(progress, -M_PI, 1e-12);
+  EXPECT_NEAR(-M_PI - progress, 0, 1e-12);
+  EXPECT_GT(-M_PI - (progress - .02), 0);
+}

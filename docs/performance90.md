@@ -111,3 +111,6 @@ and p10_entry_yaml_matched (88.104 / 87.585 s).
 defaults and compares every field of all 14 named segments with YAML. The current
 configuration passes; a temporary copy with the historical 0.558 m discrepancy
 was rejected at P12_P13.forward_m. This check requires g++ and PyYAML.
+
+
+These measurements precede the optional terminal clockwise half-turn added in CP18-C031. The default now includes that action; the user waived the 90-second limit for the extended task. See [final turn](final_turn.md).

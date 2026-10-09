@@ -89,6 +89,18 @@ inline double translation_clearance(
   return result;
 }
 
+/** @brief Accumulate signed rotation without losing direction at the +/-pi branch cut.
+ * @param[in] accumulated Prior terminal progress stored by PIDMazeSolver::odom(), radians.
+ * @param[in] previous Last accepted odom yaw stored by odom(), radians.
+ * @param[in] current New accepted odom yaw read by odom(), radians.
+ * @return Updated progress written back to final_rotation_ and read by tick().
+ * @note Caller rejects discontinuous odom before this update; adjacent increments must be <pi.
+ */
+inline double accumulate_rotation(double accumulated, double previous, double current)
+{
+  return accumulated + wrap(current - previous);
+}
+
 /** @brief One side-wall fit; invalid fits must never drive centering. */
 struct SideWall
 {

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="15" failures="0" disabled="0" errors="0" time="0" timestamp="2026-10-09T23:50:51" name="AllTests">
+  <testsuite name="Route" tests="4" failures="0" disabled="0" errors="0" time="0" timestamp="2026-10-09T23:50:51">
+    <testcase name="PreserveStrafingHeadings" status="run" result="completed" time="0" timestamp="2026-10-09T23:50:51" classname="pid_maze_solver.Route" />
+    <testcase name="FinalAndWrap" status="run" result="completed" time="0" timestamp="2026-10-09T23:50:51" classname="pid_maze_solver.Route" />
+    <testcase name="CoordinateOverridePreservesAllHeadings" status="run" result="completed" time="0" timestamp="2026-10-09T23:50:51" classname="pid_maze_solver.Route" />
+    <testcase name="RejectInvalidCoordinateOverride" status="run" result="completed" time="0" timestamp="2026-10-09T23:50:51" classname="pid_maze_solver.Route" />
+  </testsuite>
+  <testsuite name="Guard" tests="3" failures="0" disabled="0" errors="0" time="0" timestamp="2026-10-09T23:50:51">
+    <testcase name="FootprintClearance" status="run" result="completed" time="0" timestamp="2026-10-09T23:50:51" classname="pid_maze_solver.Guard" />
+    <testcase name="EmptyCornerIsNotChassis" status="run" result="completed" time="0" timestamp="2026-10-09T23:50:51" classname="pid_maze_solver.Guard" />
+    <testcase name="CruisePreviewSeparatesParallelWallFromClosingCorner" status="run" result="completed" time="0" timestamp="2026-10-09T23:50:51" classname="pid_maze_solver.Guard" />
+  </testsuite>
+  <testsuite name="Motion" tests="6" failures="0" disabled="0" errors="0" time="0" timestamp="2026-10-09T23:50:51">
+    <testcase name="GenerateTargetsFromBodyActions" status="run" result="completed" time="0" timestamp="2026-10-09T23:50:51" classname="pid_maze_solver.Motion" />
+    <testcase name="RejectInvalidSteps" status="run" result="completed" time="0" timestamp="2026-10-09T23:50:51" classname="pid_maze_solver.Motion" />
+    <testcase name="P14ClearanceChangePreservesFinalDestinationAndHeadings" status="run" result="completed" time="0" timestamp="2026-10-09T23:50:51" classname="pid_maze_solver.Motion" />
+    <testcase name="P08AndP10ApproachesPreserveLaterDestinations" status="run" result="completed" time="0" timestamp="2026-10-09T23:50:51" classname="pid_maze_solver.Motion" />
+    <testcase name="RejectInvalidCruiseBounds" status="run" result="completed" time="0" timestamp="2026-10-09T23:50:51" classname="pid_maze_solver.Motion" />
+    <testcase name="ClockwiseHalfTurnKeepsDirectionAcrossBranchCutAndInitialNoise" status="run" result="completed" time="0" timestamp="2026-10-09T23:50:51" classname="pid_maze_solver.Motion" />
+  </testsuite>
+  <testsuite name="Walls" tests="1" failures="0" disabled="0" errors="0" time="0" timestamp="2026-10-09T23:50:51">
+    <testcase name="CenterOnlyWithConsistentTwoSidedSupport" status="run" result="completed" time="0" timestamp="2026-10-09T23:50:51" classname="pid_maze_solver.Walls" />
+  </testsuite>
+  <testsuite name="Pid" tests="1" failures="0" disabled="0" errors="0" time="0" timestamp="2026-10-09T23:50:51">
+    <testcase name="DynamicCapCannotRaiseConfiguredLimitAndDropsImmediately" status="run" result="completed" time="0" timestamp="2026-10-09T23:50:51" classname="pid_maze_solver.Pid" />
+  </testsuite>
+</testsuites>

@@ -1,0 +1,14 @@
+{
+  "elapsed_s": 6.640052318572998,
+  "rotation_rad": -3.134652,
+  "error_rad": -0.00694,
+  "error_deg": -0.39763270982079135,
+  "command_samples": 334,
+  "max_planar_command": 0,
+  "final_command": [
+    0,
+    0,
+    0
+  ],
+  "terminal_holds": 0
+}

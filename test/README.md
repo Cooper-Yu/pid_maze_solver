@@ -1,7 +1,7 @@
 # Tests
 
 Build and run `colcon test --packages-select pid_maze_solver`, then inspect
-`colcon test-result --verbose`. Fourteen GoogleTests cover supplied headings, angle wrapping, footprint and cruise-preview
+`colcon test-result --verbose`. Fifteen GoogleTests cover supplied headings, angle wrapping, footprint and cruise-preview
 geometry, finite origin-preserving route overrides, destination-preserving offsets,
 segment speed validation and immediate PID speed-cap reductions.
 
@@ -16,3 +16,5 @@ See `docs/verification.md` for actual maze evidence and remaining acceptance.
 Run `python3 test/check_motion_config.py` from the package root (g++ and PyYAML
 required) to compare all 14 compiled MotionStep defaults with the shipped YAML.
 This prevents the bare command and parameter-file route from drifting apart.
+
+The terminal half-turn regression covers branch-cut crossing, initial opposite-direction noise and overshoot correction.

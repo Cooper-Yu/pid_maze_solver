@@ -29,6 +29,7 @@ public:
     if (!get_node_parameters_interface()->get_parameter_overrides().count("use_sim_time"))
       set_parameter(rclcpp::Parameter("use_sim_time", true));
     configure_route();
+    final_turn_enabled_ = declare_parameter<bool>("final_clockwise_turn", true);
     speed_ = positive("max_speed", steps_.empty() ? .12 : .24);
     accel_ = positive("max_acceleration", steps_.empty() ? .25 : .4);
     const double kp = positive("distance_kp", 1.5), ki = nonnegative("distance_ki", 0.0),
@@ -135,7 +136,8 @@ private:
     stop();
     code_ = 2;
     RCLCPP_ERROR(
-      get_logger(), "%s point=P%02zu stage=%s", reason, index_ + 1, moving_ ? "MOVE" : "TURN");
+      get_logger(), "%s point=P%02zu stage=%s", reason, index_ + 1,
+      final_turn_active_ ? "FINAL_TURN" : (moving_ ? "MOVE" : "TURN"));
     rclcpp::shutdown();
   }
 
@@ -169,6 +171,7 @@ private:
     frame_ = m.header.frame_id;
     x_ = p.x;
     y_ = p.y;
+    if (final_turn_active_) final_rotation_ = maze::accumulate_rotation(final_rotation_, yaw_, yaw);
     yaw_ = yaw;
     vx_ = v.linear.x;
     vy_ = v.linear.y;
@@ -464,7 +467,8 @@ private:
    */
   bool recover_turn_clearance()
   {
-    if (moving_ || std::abs(wz_) > .02 || std::hypot(vx_, vy_) > .03) return false;
+    if (final_turn_active_ || moving_ || std::abs(wz_) > .02 || std::hypot(vx_, vy_) > .03)
+      return false;
     if (std::hypot(x_ - turn_x_, y_ - turn_y_) > .06) {
       fail("TURN_CLEARANCE_LIMIT");
       return false;
@@ -485,6 +489,26 @@ private:
     return true;
   }
 
+  /** @brief Start a clockwise half-turn from the actual stopped P15 heading.
+   * @par Terminal action
+   * complete_stage() calls this only after the complete route reaches its final point.
+   * odom() accumulates accepted signed yaw increments; tick() reads the remaining rotation.
+   * @note No new XY waypoint, initialization or translation is requested. Obstacle recovery
+   * translation is disabled for this action; blocked rotation still stops and faults.
+   */
+  void begin_final_turn()
+  {
+    final_turn_active_ = true;
+    final_rotation_ = 0.0;
+    moving_ = false;
+    heading_ = yaw_ - M_PI;
+    reset();
+    stage_started_ = Clock::now();
+    RCLCPP_INFO(
+      get_logger(), "Final clockwise turn: start=%.6f target=%.6f delta=-3.141593 rad", yaw_,
+      heading_);
+  }
+
   /** @brief Complete a stopped TURN or MOVE and select the next state.
    *
  * @param[in] distance Current odom position error from tick(), meters, used in arrival logging.
@@ -497,6 +521,14 @@ private:
   {
     stop();
     if (!settled(true)) return;
+    if (final_turn_active_) {
+      RCLCPP_INFO(
+        get_logger(), "Final clockwise turn completed: rotation=%.6f error=%.6f rad",
+        final_rotation_, e);
+      RCLCPP_INFO(get_logger(), "Route completed; stopped.");
+      rclcpp::shutdown();
+      return;
+    }
     if (!moving_) {
       moving_ = true;
       reset();
@@ -505,12 +537,17 @@ private:
     } else {
       RCLCPP_INFO(
         get_logger(), "Reached P%02zu: distance=%.6f heading_error=%.6f", index_ + 1, distance, e);
-      if (++index_ >= static_cast<std::size_t>(last_index_)) {
+      if (index_ + 1 >= static_cast<std::size_t>(last_index_)) {
+        if (final_turn_enabled_ && static_cast<std::size_t>(last_index_) == route_.size()) {
+          begin_final_turn();
+          return;
+        }
         stop();
         RCLCPP_INFO(get_logger(), "Route completed; stopped.");
         rclcpp::shutdown();
         return;
       }
+      ++index_;
       target(true);
     }
   }
@@ -538,7 +575,8 @@ private:
     }
     last_ = now();
     center_from_sides();
-    double e = maze::wrap(heading_ - yaw_), distance = std::hypot(tx_ - x_, ty_ - y_);
+    const double e = final_turn_active_ ? -M_PI - final_rotation_ : maze::wrap(heading_ - yaw_);
+    const double distance = std::hypot(tx_ - x_, ty_ - y_);
     bool close = std::abs(e) < .01 && (!moving_ || distance < .015);
     if (close) {
       complete_stage(distance, e);
@@ -567,7 +605,8 @@ private:
     RCLCPP_INFO_THROTTLE(
       get_logger(), *get_clock(), 1000,
       "P%02zu %s distance=%.3f yaw_error=%.3f cmd=(%.3f,%.3f,%.3f)", index_ + 1,
-      moving_ ? "MOVE" : "TURN", distance, e, cmd.linear.x, cmd.linear.y, cmd.angular.z);
+      final_turn_active_ ? "FINAL_TURN" : (moving_ ? "MOVE" : "TURN"), distance, e, cmd.linear.x,
+      cmd.linear.y, cmd.angular.z);
   }
 
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_;        ///< Sole velocity publisher.
@@ -579,7 +618,12 @@ private:
   std::vector<std::array<double, 2>> points_;  ///< Accepted laser points in base_link, meters.
   std::vector<maze::Point> route_;             ///< Generated nominal route poses relative to P01.
   std::vector<maze::MotionStep>
-    steps_;                ///< Relative actions; empty in fixed-point compatibility mode.
+    steps_;  ///< Relative actions; empty in fixed-point compatibility mode.
+  bool
+    final_turn_enabled_{};  ///< Append clockwise 180 degrees after the full route, not last_point trials.
+  bool final_turn_active_{};  ///< Terminal rotation only; no MOVE or clearance translation.
+  double
+    final_rotation_{};  ///< Signed odom yaw accumulated since terminal entry, radians; clockwise negative.
   bool side_centering_{};  ///< Enables gated bilateral wall centering for forward motion.
   int center_count_{};     ///< Consecutive accepted fresh side-wall fits in this segment.
   rclcpp::Time center_scan_{0, 0, RCL_ROS_TIME};  ///< Last scan consumed for centering.
