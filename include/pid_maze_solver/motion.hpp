@@ -2,6 +2,7 @@
  * @brief Relative motion planning and conservative bilateral wall measurements.
  */
 #pragma once
+#include <limits>
 #include <string>
 
 #include "pid_maze_solver/route.hpp"
@@ -17,26 +18,28 @@ struct MotionStep
   double left;       ///< Signed travel left of the new heading, meters; negative is right.
   bool side_centering{
     true};  ///< Allow bilateral centering; disable for a planned turn-clearance offset.
+  double max_speed{.24};  ///< Cruise cap in m/s, bounded by global and near-wall/arrival limits.
 };
 
 /** @brief Editable distances derived from the measured route, without stored target XY poses.
- * @note P13_P14 stops 70 mm earlier for corner clearance. P14_P15 compensates both
+ * @note P07/P08/P09 shift 30 mm right, compensated at P10, with P08 centering disabled.
+ * P13_P14 stops 70 mm earlier for corner clearance. P14_P15 compensates both
  * route axes by 70/sqrt(2) mm to preserve the final nominal destination and headings.
  */
 inline const std::vector<MotionStep> default_steps{
   {"P01_P02", 0, .35, 0},
-  {"P02_P03", -M_PI / 4, .21, 0},
+  {"P02_P03", -M_PI / 4, .21, 0, true, .12},
   {"P03_P04", -M_PI / 4, 1.15, .03},
   {"P04_P05", M_PI / 2, .46, -.012},
   {"P05_P06", M_PI / 2, .50, -.03},
-  {"P06_P07", 0, 0, -.34},
-  {"P07_P08", 0, .55, 0},
-  {"P08_P09", 0, 0, -.615},
-  {"P09_P10", 0, .796, .03, false},
+  {"P06_P07", 0, 0, -.37, true, .20},
+  {"P07_P08", 0, .55, 0, false, .20},
+  {"P08_P09", 0, 0, -.615, true, .20},
+  {"P09_P10", 0, .796, .06, false},
   {"P10_P11", M_PI / 2, .441, 0},
-  {"P11_P12", 0, 0, .256},
+  {"P11_P12", 0, 0, .256, true, .20},
   {"P12_P13", 0, .528, 0},
-  {"P13_P14", -M_PI / 4, .378, 0},
+  {"P13_P14", -M_PI / 4, .378, 0, true, .12},
   {"P14_P15", M_PI / 4, .6134974746830583, -.0494974746830583},
 };
 
@@ -55,6 +58,8 @@ inline std::vector<Point> generate_route(const std::vector<MotionStep> & steps)
   for (const auto & step : steps) {
     if (!std::isfinite(step.turn) || !std::isfinite(step.forward) || !std::isfinite(step.left))
       throw std::invalid_argument("motion steps must be finite");
+    if (!std::isfinite(step.max_speed) || step.max_speed <= 0)
+      throw std::invalid_argument("segment speed must be finite and positive");
     if (std::abs(step.turn) > M_PI)
       throw std::invalid_argument("turn must be within +/-180 degrees");
     const auto & previous = result.back();
@@ -63,6 +68,24 @@ inline std::vector<Point> generate_route(const std::vector<MotionStep> & steps)
       {previous.x + c * step.forward - s * step.left, previous.y + s * step.forward + c * step.left,
        yaw});
   }
+  return result;
+}
+
+/** @brief Estimate footprint clearance along a short planned translation for cruise slowdown.
+ * @param[in] points TF-transformed base_link scan points from PIDMazeSolver::scan().
+ * @param[in] dx Body-x preview displacement from translation_limit(), meters.
+ * @param[in] dy Body-y preview displacement from translation_limit(), meters.
+ * @return Minimum modeled gap (m), read by translation_limit() to reduce cruise speed.
+ * @note Samples a straight preview including the current footprint, not rotation or measured
+ * momentum. The independent safe() guard still handles those before publication.
+ */
+inline double translation_clearance(
+  const std::vector<std::array<double, 2>> & points, double dx, double dy)
+{
+  double result = std::numeric_limits<double>::infinity();
+  for (const auto & point : points)
+    for (int k = 0; k <= 6; ++k)
+      result = std::min(result, clearance(point[0] - dx * k / 6, point[1] - dy * k / 6));
   return result;
 }
 

@@ -1,0 +1,2 @@
+ros2 run pid_maze_solver pid_maze_solver
+Runner: bash /home/cooper/ros2_ws/training_notes/checkpoint18/robot_control_rosbot_xl/code_lab/verify_task5_survey.bash

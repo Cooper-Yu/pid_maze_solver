@@ -43,21 +43,28 @@ public:
    *
  * @param[in] dt Positive ROS-time interval supplied by PIDMazeSolver::tick(), seconds.
    *
+ * @param[in] speed_limit move() supplies a per-tick translation bound (m/s); zero from
+ * tick() keeps the configured angular limit. Reads only; cannot raise the configured cap.
  * @return Bounded m/s or rad/s command returned to PIDMazeSolver::tick() or move() for body-frame conversion, correction and guarded publication; zero for invalid input.
    *
- * @note Writes internal integral/output; integration is blocked when pushing saturation.
+ * @note Writes internal integral/output; integration is blocked when pushing saturation. Lower caps apply immediately;
+ * measured-velocity collision prediction remains the caller's responsibility.
    */
-  double update(double error, double rate, double dt)
+  double update(double error, double rate, double dt, double speed_limit = 0.0)
   {
-    if (!std::isfinite(error) || !std::isfinite(rate) || !std::isfinite(dt) || dt <= 0.0) {
+    if (
+      !std::isfinite(error) || !std::isfinite(rate) || !std::isfinite(dt) || dt <= 0.0 ||
+      !std::isfinite(speed_limit) || speed_limit < 0.0) {
       reset();
       return 0.0;
     }
+    const double bound = speed_limit > 0 ? std::min(speed_, speed_limit) : speed_;
     const double candidate = std::clamp(integral_ + error * dt, -0.5, 0.5);
     const double requested = kp_ * error + ki_ * candidate - kd_ * rate;
-    if (std::abs(requested) <= speed_ || error * requested < 0.0) integral_ = candidate;
-    const double limited = std::clamp(kp_ * error + ki_ * integral_ - kd_ * rate, -speed_, speed_);
+    if (std::abs(requested) <= bound || error * requested < 0.0) integral_ = candidate;
+    const double limited = std::clamp(kp_ * error + ki_ * integral_ - kd_ * rate, -bound, bound);
     command_ += std::clamp(limited - command_, -acceleration_ * dt, acceleration_ * dt);
+    command_ = std::clamp(command_, -bound, bound);
     return command_;
   }
 

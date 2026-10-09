@@ -6,7 +6,8 @@ by named ROS parameters. The first stopped odometry pose anchors P01, and all
 nominal waypoint poses are generated from that origin. Placement must match the
 maze start; startup does not reposition the robot automatically.
 
-Each destination uses TURN -> MOVE -> stopped hold. Strafes keep the planned
+Each destination uses TURN -> MOVE -> stopped hold. An unchanged heading can reuse
+the previous destination's verified stop, skipping only its duplicate TURN hold. Strafes keep the planned
 heading. Reliable paired side walls can correct a forward segment's cross-track
 target within 6 cm; openings do not trigger blind recentering. See
 [relative actions and wall correction](docs/motion_steps.md).
@@ -35,7 +36,7 @@ Laser returns are transformed with TF. The known Task2 self-filter box
 x=[-.195,.165], y=[-.145,.145] m excludes chassis returns. Near-wall points add
 bounded body-frame repulsion during translation, tapered over the final 0.10 m
 above the arrival tolerance to avoid cancelling target attraction. Odom, not ray length alone,
-defines waypoint arrival (15 mm position, .01 rad heading, stopped for .4 s).
+defines waypoint arrival (15 mm position, .01 rad heading, stopped for stop_hold, default .20 s; startup .40 s).
 The laser guard predicts chassis clearance over .48 s using both commanded and
 measured velocity. It checks the union of the model-derived body box (half extents .170/.135 m)
 and wheel envelope (.135/.160 m), plus .015 m clearance, stops on an obstruction, and faults after a 5 s blocked hold. This
@@ -89,8 +90,15 @@ ros2 run pid_maze_solver pid_maze_solver --ros-args --params-file \
 Read [motion sequence](docs/motion_plan.md) and [laser survey](docs/laser_survey.md)
 for measured distances, tested coordinates and the acceptance boundary.
 
-## Performance experiments
+## Performance verification
 
-[Staged optimization report](docs/optimization.md) records each full-route trial, rejected variants and current acceptance limits. The retained P10 approach disables bilateral centering for that segment to preserve a 30 mm turn-clearance offset; repulsion and hard obstacle protection remain enabled. Default speed and all stopped holds remain unchanged.
+The current motion_steps policy uses per-segment caps (0.12/0.20/0.24 m/s),
+0.40 m/s^2 translation acceleration, early near-wall/arrival slowdown and a
+0.20-second qualified stop. Unchanged headings can reuse a preceding qualified
+stop. Startup still requires 0.40 seconds. P07-P09 approach offsets improve
+corner clearance; P10 and later nominal destinations stay fixed.
 
-See [P14 corner-clearance repair and verification](docs/p14_clearance.md) for the current route adjustment and its local test limits.
+See [current performance results and exact limits](docs/performance90.md).
+The [earlier optimization trials](docs/optimization.md) and
+[P14 repair](docs/p14_clearance.md) retain historical results, including rejected
+variants. Hard protection thresholds and warning publication remain enabled.

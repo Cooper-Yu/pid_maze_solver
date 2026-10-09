@@ -1,0 +1,2 @@
+ros2 run pid_maze_solver pid_maze_solver
+Source trial changed angular acceleration default to 1.0 rad/s^2; this variant was not retained.

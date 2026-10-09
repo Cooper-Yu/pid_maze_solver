@@ -77,3 +77,5 @@ Default command completed 14 legs and exited 0. Maximum stopped odometry error: 
 Per-step side_centering can disable the centerline objective for a deliberately offset turn approach. P09_P10 uses this setting; laser repulsion and hard clearance checks stay enabled. The global side_centering switch still disables centering for every step.
 
 Current route: P13_P14 stops 70 mm earlier; P14_P15 compensates both route axes, preserving nominal P15 and every planned yaw. See [P14 verification](p14_clearance.md). The preceding local verification section describes the historical first motion-step version.
+
+Current P08 margin: P06_P07 right travel is 0.37 m, P07_P08 disables centering, and P08_P09 right travel is 0.615 m. P09_P10 left travel is 0.06 m, restoring P10 and later nominal targets. Per-step max_speed and global max_speed/max_acceleration/stop_hold are described in [performance policy](performance90.md).

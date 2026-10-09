@@ -1,7 +1,7 @@
 PROJECT_NAME = "pid_maze_solver"
 PROJECT_BRIEF = "Task5 route, control and interface documentation"
 OUTPUT_DIRECTORY = docs/generated
-INPUT = README.md docs/mainpage.dox docs/api.dox docs/flow.md docs/tooling.md docs/verification.md docs/motion_plan.md docs/motion_steps.md docs/optimization.md docs/p14_clearance.md docs/laser_survey.md docs/style_profile.md docs/TEMPLATE_SOURCES.md include/pid_maze_solver src test/README.md
+INPUT = README.md docs/mainpage.dox docs/api.dox docs/flow.md docs/tooling.md docs/verification.md docs/motion_plan.md docs/motion_steps.md docs/optimization.md docs/p14_clearance.md docs/performance90.md docs/laser_survey.md docs/style_profile.md docs/TEMPLATE_SOURCES.md include/pid_maze_solver src test/README.md
 RECURSIVE = NO
 FILE_PATTERNS = *.hpp *.h *.cpp *.py *.md *.dox
 USE_MDFILE_AS_MAINPAGE =

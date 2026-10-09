@@ -65,3 +65,10 @@ Only the P10 approach offset and per-segment centering switch are retained. Full
 ## P14 follow-up verification
 
 The route-data repair passed two full contact-instrumented runs at 0.12 and 0.11 m/s, 14 legs and exit 0 each, zero wall contact points. See [P14 report](p14_clearance.md) for commands, limits, point-cloud evidence and 10 passing unit tests. Cloud acceptance remains pending.
+
+
+## CP18-C030 final performance verification
+
+Two complete local runs: 88.104/87.585 seconds, 14 legs, exit 0, zero obstacle-hold logs and zero classified wall contacts. Fourteen GoogleTests and all three runtime guard fixtures pass. See [staged evidence and limits](performance90.md). Cloud acceptance remains pending; no Task5 tag.
+
+The final YAML matches the C++ route defaults; the parity check passes and rejects the historical 0.558/0.528 m drift. Earlier YAML trial snapshots preserve that difference.

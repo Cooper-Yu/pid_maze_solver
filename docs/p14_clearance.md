@@ -1,5 +1,6 @@
 # P14 corner clearance repair
 
+This page preserves its historical trial state. See [current performance verification](performance90.md) for later speed, acceleration and stop-reuse changes.
 The rejected waiting and speed trials stopped before P14 with a laser point near
 body x=0.18, y=-0.15 m. The point lay close to the footprint front-right corner,
 although front/right axis-window median ranges were about 0.33 m. Sector medians

@@ -1,0 +1,3 @@
+ros2 run pid_maze_solver pid_maze_solver --ros-args --params-file config/motion_route.yaml
+Runner: code_lab/verify_task5_survey.bash --ros-args --params-file /home/cooper/ros2_ws/src/pid_maze_solver/config/motion_route.yaml
+Use this directory configuration.yaml, not a later version, for reproduction.

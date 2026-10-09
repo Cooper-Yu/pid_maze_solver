@@ -1,0 +1,80 @@
+pid_maze_solver:
+  ros__parameters:
+    route_mode: motion_steps
+    side_centering: true
+    max_speed: 0.24
+    max_acceleration: 0.4
+    stop_hold: 0.20
+    steps:
+      P01_P02:
+        max_speed: 0.24
+        turn_deg: 0.0
+        forward_m: 0.35
+        left_m: 0.0
+      P02_P03:
+        max_speed: 0.12
+        turn_deg: -45.0
+        forward_m: 0.21
+        left_m: 0.0
+      P03_P04:
+        max_speed: 0.24
+        turn_deg: -45.0
+        forward_m: 1.15
+        left_m: 0.03
+      P04_P05:
+        max_speed: 0.24
+        turn_deg: 90.0
+        forward_m: 0.46
+        left_m: -0.012
+      P05_P06:
+        max_speed: 0.24
+        turn_deg: 90.0
+        forward_m: 0.5
+        left_m: -0.03
+      P06_P07:
+        max_speed: 0.20
+        turn_deg: 0.0
+        forward_m: 0.0
+        left_m: -0.37
+      P07_P08:
+        max_speed: 0.20
+        turn_deg: 0.0
+        forward_m: 0.55
+        left_m: 0.0
+        side_centering: false
+      P08_P09:
+        max_speed: 0.20
+        turn_deg: 0.0
+        forward_m: 0.0
+        left_m: -0.615
+      P09_P10:
+        max_speed: 0.24
+        turn_deg: 0.0
+        forward_m: 0.796
+        left_m: 0.06
+        side_centering: false
+      P10_P11:
+        max_speed: 0.24
+        turn_deg: 90.0
+        forward_m: 0.441
+        left_m: 0.0
+      P11_P12:
+        max_speed: 0.20
+        turn_deg: 0.0
+        forward_m: 0.0
+        left_m: 0.256
+      P12_P13:
+        max_speed: 0.24
+        turn_deg: 0.0
+        forward_m: 0.558
+        left_m: 0.0
+      P13_P14:
+        max_speed: 0.12
+        turn_deg: -45.0
+        forward_m: 0.378
+        left_m: 0.0
+      P14_P15:
+        max_speed: 0.24
+        turn_deg: 45.0
+        forward_m: 0.6134974746830583
+        left_m: -0.0494974746830583

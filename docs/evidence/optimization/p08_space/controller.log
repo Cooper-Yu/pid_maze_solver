@@ -1,0 +1,161 @@
+[INFO] [1791558469.105816755] [pid_maze_solver]: Generated 14 targets from relative motion distances
+[INFO] [1791558469.108600964] [pid_maze_solver]: Task5: 15 points; destination yaw preserved; distance PID=(1.50,0.00,0.00)
+[WARN] [1791558469.108773021] [tf2_buffer]: Detected time source change. Clearing TF buffer.
+[INFO] [1791558469.568815188] [pid_maze_solver]: Route origin P01: x=0.000000 y=0.000000 yaw=0.000994
+[INFO] [1791558469.568911164] [pid_maze_solver]: Target P02: x=0.350000 y=0.000348 yaw=0.000994; TURN then MOVE
+[INFO] [1791558469.988733089] [pid_maze_solver]: P02 MOVE
+[INFO] [1791558470.009630679] [pid_maze_solver]: P02 MOVE distance=0.350 yaw_error=0.000 cmd=(0.015,0.006,0.000)
+[INFO] [1791558470.168719356] [pid_maze_solver]: SIDE_CENTER P02 left=0.258 right=0.282 target_offset=-0.004 m
+[INFO] [1791558471.009678018] [pid_maze_solver]: P02 MOVE distance=0.268 yaw_error=-0.000 cmd=(0.120,-0.006,-0.001)
+[INFO] [1791558471.168771457] [pid_maze_solver]: SIDE_CENTER P02 left=0.267 right=0.273 target_offset=-0.012 m
+[INFO] [1791558472.009572747] [pid_maze_solver]: P02 MOVE distance=0.148 yaw_error=0.000 cmd=(0.120,-0.001,-0.001)
+[INFO] [1791558472.168807479] [pid_maze_solver]: SIDE_CENTER P02 left=0.269 right=0.270 target_offset=-0.012 m
+[INFO] [1791558473.009575362] [pid_maze_solver]: P02 MOVE distance=0.037 yaw_error=0.000 cmd=(0.055,-0.000,-0.002)
+[INFO] [1791558473.988843449] [pid_maze_solver]: Reached P02: distance=0.012530 heading_error=0.000793
+[INFO] [1791558473.988914577] [pid_maze_solver]: Target P03: x=0.498640 y=-0.147997 yaw=-0.784405; TURN then MOVE
+[INFO] [1791558474.009573600] [pid_maze_solver]: P03 TURN distance=0.211 yaw_error=-0.785 cmd=(0.000,0.000,-0.012)
+[INFO] [1791558475.010595000] [pid_maze_solver]: P03 TURN distance=0.211 yaw_error=-0.527 cmd=(0.000,0.000,-0.600)
+[INFO] [1791558476.010563886] [pid_maze_solver]: P03 TURN distance=0.211 yaw_error=-0.053 cmd=(0.000,0.000,-0.070)
+[INFO] [1791558477.248936096] [pid_maze_solver]: P03 MOVE
+[INFO] [1791558477.269664847] [pid_maze_solver]: P03 MOVE distance=0.211 yaw_error=-0.008 cmd=(0.013,-0.005,-0.012)
+[INFO] [1791558478.269641706] [pid_maze_solver]: P03 MOVE distance=0.123 yaw_error=-0.002 cmd=(0.120,0.005,-0.003)
+[INFO] [1791558479.269677203] [pid_maze_solver]: P03 MOVE distance=0.025 yaw_error=0.000 cmd=(0.037,0.008,-0.001)
+[INFO] [1791558480.048939292] [pid_maze_solver]: Reached P03: distance=0.012475 heading_error=0.000077
+[INFO] [1791558480.049046512] [pid_maze_solver]: Target P04: x=0.529782 y=-1.297967 yaw=-1.569803; TURN then MOVE
+[INFO] [1791558480.269787661] [pid_maze_solver]: P04 TURN distance=1.157 yaw_error=-0.784 cmd=(0.000,0.000,-0.132)
+[INFO] [1791558481.269800977] [pid_maze_solver]: P04 TURN distance=1.157 yaw_error=-0.407 cmd=(0.000,0.000,-0.540)
+[INFO] [1791558482.269697668] [pid_maze_solver]: P04 TURN distance=1.157 yaw_error=-0.035 cmd=(0.000,0.000,-0.050)
+[INFO] [1791558483.289039001] [pid_maze_solver]: P04 MOVE
+[INFO] [1791558483.309785189] [pid_maze_solver]: P04 MOVE distance=1.157 yaw_error=-0.008 cmd=(0.001,0.012,-0.012)
+[INFO] [1791558484.309930566] [pid_maze_solver]: P04 MOVE distance=1.077 yaw_error=-0.001 cmd=(0.119,0.013,-0.002)
+[INFO] [1791558485.269005849] [pid_maze_solver]: SIDE_CENTER P04 left=0.248 right=0.253 target_offset=-0.003 m
+[INFO] [1791558485.309789980] [pid_maze_solver]: P04 MOVE distance=0.957 yaw_error=-0.000 cmd=(0.120,-0.002,-0.000)
+[INFO] [1791558486.269051870] [pid_maze_solver]: SIDE_CENTER P04 left=0.250 right=0.252 target_offset=-0.003 m
+[INFO] [1791558486.309823158] [pid_maze_solver]: P04 MOVE distance=0.837 yaw_error=0.000 cmd=(0.120,-0.000,0.000)
+[INFO] [1791558487.269054334] [pid_maze_solver]: SIDE_CENTER P04 left=0.250 right=0.251 target_offset=-0.003 m
+[INFO] [1791558487.309816441] [pid_maze_solver]: P04 MOVE distance=0.717 yaw_error=0.000 cmd=(0.120,-0.000,-0.001)
+[INFO] [1791558488.269062821] [pid_maze_solver]: SIDE_CENTER P04 left=0.250 right=0.251 target_offset=-0.003 m
+[INFO] [1791558488.310860807] [pid_maze_solver]: P04 MOVE distance=0.597 yaw_error=-0.000 cmd=(0.120,-0.000,0.001)
+[INFO] [1791558489.269087392] [pid_maze_solver]: SIDE_CENTER P04 left=0.250 right=0.251 target_offset=-0.003 m
+[INFO] [1791558489.329868599] [pid_maze_solver]: P04 MOVE distance=0.477 yaw_error=-0.000 cmd=(0.120,-0.000,-0.002)
+[INFO] [1791558490.269090629] [pid_maze_solver]: SIDE_CENTER P04 left=0.250 right=0.251 target_offset=-0.003 m
+[INFO] [1791558490.329876702] [pid_maze_solver]: P04 MOVE distance=0.357 yaw_error=0.000 cmd=(0.120,0.000,-0.001)
+[INFO] [1791558491.269114628] [pid_maze_solver]: SIDE_CENTER P04 left=0.250 right=0.251 target_offset=-0.003 m
+[INFO] [1791558491.329916530] [pid_maze_solver]: P04 MOVE distance=0.237 yaw_error=0.000 cmd=(0.120,0.000,-0.001)
+[INFO] [1791558492.329993974] [pid_maze_solver]: P04 MOVE distance=0.117 yaw_error=0.001 cmd=(0.120,0.000,0.001)
+[INFO] [1791558493.329952699] [pid_maze_solver]: P04 MOVE distance=0.023 yaw_error=0.000 cmd=(0.035,0.001,0.000)
+[INFO] [1791558494.049198566] [pid_maze_solver]: Reached P04: distance=0.013132 heading_error=0.001257
+[INFO] [1791558494.049361892] [pid_maze_solver]: Target P05: x=0.989794 y=-1.309510 yaw=0.000994; TURN then MOVE
+[INFO] [1791558494.329977768] [pid_maze_solver]: P05 TURN distance=0.464 yaw_error=1.564 cmd=(0.000,0.000,0.169)
+[INFO] [1791558495.330008447] [pid_maze_solver]: P05 TURN distance=0.464 yaw_error=1.152 cmd=(0.000,0.000,0.600)
+[INFO] [1791558496.330036396] [pid_maze_solver]: P05 TURN distance=0.464 yaw_error=0.475 cmd=(0.000,0.000,0.600)
+[INFO] [1791558497.330008893] [pid_maze_solver]: P05 TURN distance=0.464 yaw_error=0.051 cmd=(0.000,0.000,0.065)
+[INFO] [1791558498.689279317] [pid_maze_solver]: P05 MOVE
+[INFO] [1791558498.710038656] [pid_maze_solver]: P05 MOVE distance=0.464 yaw_error=0.007 cmd=(0.005,-0.005,0.012)
+[INFO] [1791558499.710080298] [pid_maze_solver]: P05 MOVE distance=0.382 yaw_error=0.002 cmd=(0.113,-0.014,0.002)
+[INFO] [1791558500.710092772] [pid_maze_solver]: P05 MOVE distance=0.270 yaw_error=0.000 cmd=(0.114,-0.004,-0.001)
+[INFO] [1791558501.710101472] [pid_maze_solver]: P05 MOVE distance=0.153 yaw_error=0.000 cmd=(0.123,-0.000,-0.000)
+[INFO] [1791558502.710105412] [pid_maze_solver]: P05 MOVE distance=0.038 yaw_error=0.000 cmd=(0.057,0.006,0.001)
+[INFO] [1791558503.749402784] [pid_maze_solver]: Reached P05: distance=0.011646 heading_error=0.000680
+[INFO] [1791558503.749485180] [pid_maze_solver]: Target P06: x=1.019297 y=-0.809480 yaw=1.571790; TURN then MOVE
+[INFO] [1791558503.770119791] [pid_maze_solver]: P06 TURN distance=0.504 yaw_error=1.571 cmd=(0.000,0.000,0.012)
+[INFO] [1791558504.770157898] [pid_maze_solver]: P06 TURN distance=0.503 yaw_error=1.308 cmd=(0.000,0.000,0.600)
+[INFO] [1791558505.770223151] [pid_maze_solver]: P06 TURN distance=0.503 yaw_error=0.631 cmd=(0.000,0.000,0.600)
+[INFO] [1791558506.770155321] [pid_maze_solver]: P06 TURN distance=0.503 yaw_error=0.080 cmd=(0.000,0.000,0.156)
+[INFO] [1791558508.149461454] [pid_maze_solver]: P06 MOVE
+[INFO] [1791558508.170228038] [pid_maze_solver]: P06 MOVE distance=0.503 yaw_error=0.007 cmd=(-0.004,-0.013,0.012)
+[INFO] [1791558509.170273295] [pid_maze_solver]: P06 MOVE distance=0.431 yaw_error=0.002 cmd=(0.113,-0.018,0.002)
+[INFO] [1791558510.170251366] [pid_maze_solver]: P06 MOVE distance=0.316 yaw_error=0.001 cmd=(0.116,-0.002,0.000)
+[INFO] [1791558511.170292223] [pid_maze_solver]: P06 MOVE distance=0.201 yaw_error=-0.000 cmd=(0.116,0.000,-0.001)
+[INFO] [1791558512.170336167] [pid_maze_solver]: P06 MOVE distance=0.081 yaw_error=0.000 cmd=(0.123,0.002,-0.001)
+[INFO] [1791558513.589559376] [pid_maze_solver]: Reached P06: distance=0.011768 heading_error=0.000571
+[INFO] [1791558513.589633848] [pid_maze_solver]: Target P07: x=1.389297 y=-0.809112 yaw=1.571790; TURN then MOVE
+[INFO] [1791558514.009561862] [pid_maze_solver]: P07 MOVE
+[INFO] [1791558514.030343996] [pid_maze_solver]: P07 MOVE distance=0.369 yaw_error=0.001 cmd=(-0.006,-0.015,0.001)
+[INFO] [1791558515.030341028] [pid_maze_solver]: P07 MOVE distance=0.287 yaw_error=0.000 cmd=(0.002,-0.126,0.001)
+[INFO] [1791558516.030341467] [pid_maze_solver]: P07 MOVE distance=0.161 yaw_error=0.001 cmd=(0.001,-0.126,0.002)
+[INFO] [1791558517.030413798] [pid_maze_solver]: P07 MOVE distance=0.041 yaw_error=-0.000 cmd=(0.007,-0.063,-0.002)
+[INFO] [1791558518.049641519] [pid_maze_solver]: Reached P07: distance=0.012562 heading_error=-0.000239
+[INFO] [1791558518.049718971] [pid_maze_solver]: Target P08: x=1.388751 y=-0.259113 yaw=1.571790; TURN then MOVE
+[INFO] [1791558518.469646218] [pid_maze_solver]: P08 MOVE
+[INFO] [1791558518.490389521] [pid_maze_solver]: P08 MOVE distance=0.552 yaw_error=-0.001 cmd=(0.003,-0.007,-0.001)
+[INFO] [1791558519.490405255] [pid_maze_solver]: P08 MOVE distance=0.471 yaw_error=0.000 cmd=(0.111,-0.011,0.001)
+[INFO] [1791558520.490444261] [pid_maze_solver]: P08 MOVE distance=0.358 yaw_error=0.001 cmd=(0.117,-0.002,0.001)
+[INFO] [1791558521.490474037] [pid_maze_solver]: P08 MOVE distance=0.238 yaw_error=0.000 cmd=(0.125,0.001,-0.000)
+[INFO] [1791558522.490484595] [pid_maze_solver]: P08 MOVE distance=0.113 yaw_error=-0.000 cmd=(0.120,0.009,-0.002)
+[INFO] [1791558523.490484847] [pid_maze_solver]: P08 MOVE distance=0.022 yaw_error=0.000 cmd=(0.032,0.001,-0.000)
+[INFO] [1791558524.189746282] [pid_maze_solver]: Reached P08: distance=0.013138 heading_error=0.000923
+[INFO] [1791558524.189818398] [pid_maze_solver]: Target P09: x=1.973750 y=-0.258531 yaw=1.571790; TURN then MOVE
+[INFO] [1791558524.609768898] [pid_maze_solver]: P09 MOVE
+[INFO] [1791558524.630512266] [pid_maze_solver]: P09 MOVE distance=0.585 yaw_error=0.001 cmd=(0.000,-0.007,0.002)
+[INFO] [1791558525.630607480] [pid_maze_solver]: P09 MOVE distance=0.505 yaw_error=0.001 cmd=(0.002,-0.116,0.002)
+[INFO] [1791558526.630593441] [pid_maze_solver]: P09 MOVE distance=0.384 yaw_error=-0.000 cmd=(-0.000,-0.124,0.000)
+[INFO] [1791558527.630576878] [pid_maze_solver]: P09 MOVE distance=0.262 yaw_error=0.000 cmd=(0.000,-0.124,0.001)
+[INFO] [1791558528.630627969] [pid_maze_solver]: P09 MOVE distance=0.138 yaw_error=0.000 cmd=(0.001,-0.124,0.001)
+[INFO] [1791558529.630617183] [pid_maze_solver]: P09 MOVE distance=0.030 yaw_error=0.000 cmd=(0.004,-0.046,0.002)
+[INFO] [1791558530.489874570] [pid_maze_solver]: Reached P09: distance=0.013115 heading_error=0.000324
+[INFO] [1791558530.489943828] [pid_maze_solver]: Target P10: x=1.942959 y=0.537438 yaw=1.571790; TURN then MOVE
+[INFO] [1791558530.909871425] [pid_maze_solver]: P10 MOVE
+[INFO] [1791558530.930651115] [pid_maze_solver]: P10 MOVE distance=0.797 yaw_error=-0.000 cmd=(0.005,0.005,-0.001)
+[INFO] [1791558531.930667118] [pid_maze_solver]: P10 MOVE distance=0.720 yaw_error=0.000 cmd=(0.106,-0.007,-0.001)
+[INFO] [1791558532.930680921] [pid_maze_solver]: P10 MOVE distance=0.614 yaw_error=0.000 cmd=(0.106,-0.003,-0.000)
+[INFO] [1791558533.930695011] [pid_maze_solver]: P10 MOVE distance=0.507 yaw_error=0.000 cmd=(0.107,-0.000,0.000)
+[INFO] [1791558534.930720076] [pid_maze_solver]: P10 MOVE distance=0.398 yaw_error=0.000 cmd=(0.130,0.000,0.002)
+[INFO] [1791558535.930747146] [pid_maze_solver]: P10 MOVE distance=0.271 yaw_error=0.000 cmd=(0.130,-0.000,0.001)
+[INFO] [1791558536.930780124] [pid_maze_solver]: P10 MOVE distance=0.142 yaw_error=-0.000 cmd=(0.130,0.001,-0.001)
+[INFO] [1791558537.930825711] [pid_maze_solver]: P10 MOVE distance=0.030 yaw_error=-0.000 cmd=(0.045,0.009,-0.001)
+[INFO] [1791558538.790023815] [pid_maze_solver]: Reached P10: distance=0.013024 heading_error=0.000238
+[INFO] [1791558538.790102662] [pid_maze_solver]: Target P11: x=1.501960 y=0.537000 yaw=3.142586; TURN then MOVE
+[INFO] [1791558538.930760620] [pid_maze_solver]: P11 TURN distance=0.444 yaw_error=1.571 cmd=(0.000,0.000,0.084)
+[INFO] [1791558539.930839916] [pid_maze_solver]: P11 TURN distance=0.444 yaw_error=1.250 cmd=(0.000,0.000,0.600)
+[INFO] [1791558540.930840371] [pid_maze_solver]: P11 TURN distance=0.444 yaw_error=0.587 cmd=(0.000,0.000,0.600)
+[INFO] [1791558541.930835224] [pid_maze_solver]: P11 TURN distance=0.444 yaw_error=0.079 cmd=(0.000,0.000,0.111)
+[INFO] [1791558542.930833918] [pid_maze_solver]: P11 TURN distance=0.444 yaw_error=0.014 cmd=(0.000,0.000,0.022)
+[INFO] [1791558543.590111391] [pid_maze_solver]: P11 MOVE
+[INFO] [1791558543.930888481] [pid_maze_solver]: P11 MOVE distance=0.438 yaw_error=0.006 cmd=(0.085,-0.012,0.007)
+[INFO] [1791558544.930903291] [pid_maze_solver]: P11 MOVE distance=0.327 yaw_error=0.002 cmd=(0.119,-0.002,0.004)
+[INFO] [1791558545.930989111] [pid_maze_solver]: P11 MOVE distance=0.208 yaw_error=0.000 cmd=(0.120,-0.000,-0.001)
+[INFO] [1791558546.930967980] [pid_maze_solver]: P11 MOVE distance=0.087 yaw_error=0.000 cmd=(0.120,0.001,0.001)
+[INFO] [1791558548.410268556] [pid_maze_solver]: Reached P11: distance=0.012549 heading_error=0.000289
+[INFO] [1791558548.410386984] [pid_maze_solver]: Target P12: x=1.502214 y=0.281000 yaw=3.142586; TURN then MOVE
+[INFO] [1791558548.830207064] [pid_maze_solver]: P12 MOVE
+[INFO] [1791558548.850988742] [pid_maze_solver]: P12 MOVE distance=0.256 yaw_error=0.001 cmd=(-0.001,0.008,0.001)
+[INFO] [1791558549.851028941] [pid_maze_solver]: P12 MOVE distance=0.174 yaw_error=0.000 cmd=(0.001,0.115,0.002)
+[INFO] [1791558550.851022830] [pid_maze_solver]: P12 MOVE distance=0.053 yaw_error=-0.000 cmd=(0.006,0.083,-0.001)
+[INFO] [1791558552.050253382] [pid_maze_solver]: Reached P12: distance=0.012479 heading_error=0.000465
+[INFO] [1791558552.050461948] [pid_maze_solver]: Target P13: x=0.974214 y=0.280476 yaw=3.142586; TURN then MOVE
+[INFO] [1791558552.470397332] [pid_maze_solver]: P13 MOVE
+[INFO] [1791558552.491088860] [pid_maze_solver]: P13 MOVE distance=0.529 yaw_error=0.001 cmd=(0.012,0.002,0.001)
+[INFO] [1791558553.491064485] [pid_maze_solver]: P13 MOVE distance=0.444 yaw_error=0.001 cmd=(0.112,0.012,0.001)
+[INFO] [1791558554.491065098] [pid_maze_solver]: P13 MOVE distance=0.330 yaw_error=0.000 cmd=(0.117,0.002,0.002)
+[INFO] [1791558555.491083032] [pid_maze_solver]: P13 MOVE distance=0.210 yaw_error=-0.000 cmd=(0.124,-0.001,-0.000)
+[INFO] [1791558556.491101109] [pid_maze_solver]: P13 MOVE distance=0.086 yaw_error=-0.000 cmd=(0.120,-0.008,-0.001)
+[INFO] [1791558557.990388868] [pid_maze_solver]: Reached P13: distance=0.012666 heading_error=0.000004
+[INFO] [1791558557.990457626] [pid_maze_solver]: Target P14: x=0.706662 y=0.547496 yaw=2.357188; TURN then MOVE
+[INFO] [1791558558.011182432] [pid_maze_solver]: P14 TURN distance=0.388 yaw_error=-0.785 cmd=(0.000,0.000,-0.012)
+[INFO] [1791558559.011478386] [pid_maze_solver]: P14 TURN distance=0.388 yaw_error=-0.529 cmd=(0.000,0.000,-0.600)
+[INFO] [1791558560.031203274] [pid_maze_solver]: P14 TURN distance=0.387 yaw_error=-0.065 cmd=(0.000,0.000,-0.068)
+[INFO] [1791558561.051151591] [pid_maze_solver]: P14 TURN distance=0.387 yaw_error=-0.010 cmd=(0.000,0.000,-0.017)
+[INFO] [1791558561.490438797] [pid_maze_solver]: P14 MOVE
+[INFO] [1791558562.051162276] [pid_maze_solver]: P14 MOVE distance=0.353 yaw_error=-0.004 cmd=(0.120,-0.001,-0.004)
+[INFO] [1791558563.051229981] [pid_maze_solver]: P14 MOVE distance=0.233 yaw_error=-0.001 cmd=(0.120,-0.000,-0.002)
+[INFO] [1791558564.051242785] [pid_maze_solver]: P14 MOVE distance=0.113 yaw_error=0.000 cmd=(0.120,0.005,0.000)
+[INFO] [1791558565.051265112] [pid_maze_solver]: P14 MOVE distance=0.022 yaw_error=0.000 cmd=(0.033,0.003,-0.001)
+[INFO] [1791558565.790516194] [pid_maze_solver]: Reached P14: distance=0.011953 heading_error=0.000421
+[INFO] [1791558565.790589271] [pid_maze_solver]: Target P15: x=0.093116 y=0.596384 yaw=3.142586; TURN then MOVE
+[INFO] [1791558566.051290470] [pid_maze_solver]: P15 TURN distance=0.625 yaw_error=0.781 cmd=(0.000,0.000,0.156)
+[INFO] [1791558567.051922735] [pid_maze_solver]: P15 TURN distance=0.625 yaw_error=0.367 cmd=(0.000,0.000,0.509)
+[INFO] [1791558568.051304853] [pid_maze_solver]: P15 TURN distance=0.625 yaw_error=0.032 cmd=(0.000,0.000,0.043)
+[INFO] [1791558569.150596359] [pid_maze_solver]: P15 MOVE
+[INFO] [1791558569.171366447] [pid_maze_solver]: P15 MOVE distance=0.625 yaw_error=0.008 cmd=(0.005,-0.005,0.012)
+[INFO] [1791558570.171375094] [pid_maze_solver]: P15 MOVE distance=0.546 yaw_error=0.002 cmd=(0.118,-0.023,0.002)
+[INFO] [1791558571.171439743] [pid_maze_solver]: P15 MOVE distance=0.426 yaw_error=0.000 cmd=(0.120,-0.004,-0.001)
+[INFO] [1791558572.070622378] [pid_maze_solver]: SIDE_CENTER P15 left=0.311 right=0.231 target_offset=0.004 m
+[INFO] [1791558572.171537705] [pid_maze_solver]: P15 MOVE distance=0.306 yaw_error=0.000 cmd=(0.119,0.011,0.001)
+[INFO] [1791558573.070638495] [pid_maze_solver]: SIDE_CENTER P15 left=0.290 right=0.251 target_offset=0.039 m
+[INFO] [1791558573.171424578] [pid_maze_solver]: P15 MOVE distance=0.189 yaw_error=0.000 cmd=(0.117,0.025,0.000)
+[INFO] [1791558574.070645632] [pid_maze_solver]: SIDE_CENTER P15 left=0.275 right=0.267 target_offset=0.040 m
+[INFO] [1791558574.171434562] [pid_maze_solver]: P15 MOVE distance=0.069 yaw_error=-0.000 cmd=(0.104,0.005,-0.001)
+[INFO] [1791558575.070665100] [pid_maze_solver]: SIDE_CENTER P15 left=0.272 right=0.270 target_offset=0.041 m
+[INFO] [1791558575.550709241] [pid_maze_solver]: Reached P15: distance=0.011849 heading_error=0.000707
+[INFO] [1791558575.550807925] [pid_maze_solver]: Route completed; stopped.

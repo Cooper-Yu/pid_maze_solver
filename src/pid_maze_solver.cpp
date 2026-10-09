@@ -29,8 +29,8 @@ public:
     if (!get_node_parameters_interface()->get_parameter_overrides().count("use_sim_time"))
       set_parameter(rclcpp::Parameter("use_sim_time", true));
     configure_route();
-    speed_ = positive("max_speed", 0.12);
-    accel_ = positive("max_acceleration", 0.25);
+    speed_ = positive("max_speed", steps_.empty() ? .12 : .24);
+    accel_ = positive("max_acceleration", steps_.empty() ? .25 : .4);
     const double kp = positive("distance_kp", 1.5), ki = nonnegative("distance_ki", 0.0),
                  kd = nonnegative("distance_kd", 0.0);
     px_ = std::make_unique<maze::AxisPid>(kp, ki, kd, speed_, accel_);
@@ -39,6 +39,7 @@ public:
       positive("turn_kp", 1.8), nonnegative("turn_ki", 0.03), nonnegative("turn_kd", 0.35),
       positive("max_yaw_rate", 0.6), 0.6);
     stage_timeout_ = positive("stage_timeout", 60.0);
+    stop_hold_ = positive("stop_hold", steps_.empty() ? .4 : .20);
     last_index_ = declare_parameter<int>("last_point", static_cast<int>(route_.size()));
     if (last_index_ < 2 || last_index_ > static_cast<int>(route_.size()))
       throw std::invalid_argument("last_point must be within generated route, at least 2");
@@ -93,6 +94,7 @@ private:
         declare_parameter<double>(prefix + "turn_deg", step.turn * 180 / M_PI) * M_PI / 180;
       step.forward = declare_parameter<double>(prefix + "forward_m", step.forward);
       step.left = declare_parameter<double>(prefix + "left_m", step.left);
+      step.max_speed = positive(prefix + "max_speed", step.max_speed);
       step.side_centering = declare_parameter<bool>(prefix + "side_centering", step.side_centering);
     }
     route_ = maze::generate_route(steps_);
@@ -223,8 +225,13 @@ private:
     blocked_ = false;
   }
 
-  /** @brief Select a supplied waypoint and transform it once from route coordinates to odom. */
-  void target()
+  /** @brief Select a waypoint and reuse an already verified stop when no turn is needed.
+   * @param[in] qualified_stop complete_stage() supplies true only after its continuous stopped
+   * hold. initialize() uses false, preserving startup qualification and the first TURN.
+   * @note Reads planned/current yaw and fresh velocities; writes moving_ for the next tick.
+   * Real turns, every destination's stopped hold and final stop remain mandatory.
+   */
+  void target(bool qualified_stop = false)
   {
     const auto & p = route_[index_];
     tx_ = ox_ + std::cos(oyaw_) * p.x - std::sin(oyaw_) * p.y;
@@ -237,12 +244,19 @@ private:
     center_scan_ = scan_stamp_;
     turn_x_ = x_;
     turn_y_ = y_;
-    moving_ = false;
+    moving_ = qualified_stop && std::abs(maze::wrap(p.yaw - route_[index_ - 1].yaw)) < 1e-9 &&
+              std::abs(maze::wrap(heading_ - yaw_)) < .01 && std::hypot(vx_, vy_) <= .01 &&
+              std::abs(wz_) <= .02 && elapsed(odom_received_) <= .5 &&
+              elapsed(scan_received_) <= .5;
     reset();
     stage_started_ = Clock::now();
     RCLCPP_INFO(
-      get_logger(), "Target P%02zu: x=%.6f y=%.6f yaw=%.6f; TURN then MOVE", index_ + 1, tx_, ty_,
-      heading_);
+      get_logger(), "Target P%02zu: x=%.6f y=%.6f yaw=%.6f; %s", index_ + 1, tx_, ty_, heading_,
+      moving_ ? "MOVE with reused stop" : "TURN then MOVE");
+    if (moving_) {
+      RCLCPP_INFO(
+        get_logger(), "P%02zu MOVE (reused qualified stop; unchanged heading)", index_ + 1);
+    }
   }
 
   /** @brief Require fresh sensors and stopped feedback before anchoring the entire route.
@@ -293,7 +307,7 @@ private:
     return std::chrono::duration<double>(Clock::now() - t).count();
   }
 
-  /** @brief Hold stopped conditions continuously for 0.4 ROS seconds.
+  /** @brief Hold stopped conditions continuously for the configured ROS-time duration.
   *
  * @param[in] in_tolerance Pose predicate from tick().
  * @return True only after stopped hold completes. */
@@ -307,7 +321,7 @@ private:
       holding_ = true;
       hold_ = now();
     }
-    return (now() - hold_).seconds() >= .4;
+    return (now() - hold_).seconds() >= stop_hold_;
   }
 
   /** @brief Apply laser-based near-wall course correction to a moving body-frame velocity.
@@ -402,6 +416,26 @@ private:
       right.distance, center_offset_);
   }
 
+  /** @brief Bound cruise by segment policy, arrival distance and observed footprint clearance.
+   * @return Speed bound consumed by move() for axis PID and the corrected body command.
+   * @note Reads current odom/target and scan points. When a 0.12 m straight preview has less than
+   * 40 mm footprint clearance, caps at 0.12 m/s. The arrival cap rises smoothly from
+   * 0.12 m/s at 0.12 m remaining.
+   * This is anticipatory slowing; safe() still checks commanded and measured motion.
+   */
+  double translation_limit() const
+  {
+    double limit = steps_.empty() ? speed_ : std::min(speed_, steps_[index_ - 1].max_speed);
+    const double distance = std::hypot(tx_ - x_, ty_ - y_);
+    limit = std::min(limit, .12 + .6 * std::max(0.0, distance - .12));
+    const double preview = std::min(distance, .12) / std::max(distance, 1e-9);
+    const double c = std::cos(yaw_), s = std::sin(yaw_);
+    const double dx = preview * (c * (tx_ - x_) + s * (ty_ - y_));
+    const double dy = preview * (-s * (tx_ - x_) + c * (ty_ - y_));
+    if (maze::translation_clearance(points_, dx, dy) < .04) limit = std::min(limit, .12);
+    return limit;
+  }
+
   /** @brief Compute translational PID in odom then rotate output into body coordinates.
   *
  * @param[in] dt Positive ROS seconds from tick().
@@ -409,13 +443,17 @@ private:
   * preserving the heading controller's angular z; correction and guard consume it next. */
   void move(double dt, geometry_msgs::msg::Twist & cmd)
   {
-    const double c = std::cos(yaw_), s = std::sin(yaw_);
-    double wx = px_->update(tx_ - x_, c * vx_ - s * vy_, dt),
-           wy = py_->update(ty_ - y_, s * vx_ + c * vy_, dt);
-    const double scale = std::min(1.0, speed_ / std::max(1e-9, std::hypot(wx, wy)));
+    const double c = std::cos(yaw_), s = std::sin(yaw_), limit = translation_limit();
+    double wx = px_->update(tx_ - x_, c * vx_ - s * vy_, dt, limit),
+           wy = py_->update(ty_ - y_, s * vx_ + c * vy_, dt, limit);
+    const double scale = std::min(1.0, limit / std::max(1e-9, std::hypot(wx, wy)));
     cmd.linear.x = scale * (c * wx + s * wy);
     cmd.linear.y = scale * (-s * wx + c * wy);
     correct(cmd);
+    const double corrected_scale =
+      std::min(1.0, limit / std::max(1e-9, std::hypot(cmd.linear.x, cmd.linear.y)));
+    cmd.linear.x *= corrected_scale;
+    cmd.linear.y *= corrected_scale;
   }
 
   /** @brief Recover turning clearance by a bounded translation away from the nearest wall.
@@ -473,7 +511,7 @@ private:
         rclcpp::shutdown();
         return;
       }
-      target();
+      target(true);
     }
   }
 
@@ -577,6 +615,7 @@ private:
   double heading_{};        ///< Fixed destination odom yaw, radians.
   double speed_{};          ///< Planar PID speed bound, m/s.
   double accel_{};          ///< Planar PID slew bound, m/s squared.
+  double stop_hold_{};      ///< Required stopped pose hold in ROS seconds; excludes startup.
   double stage_timeout_{};  ///< Steady stage deadline, seconds.
   int last_index_{15};      ///< One-based final route point.
   int code_{};              ///< Process failure code; zero on normal completion.

@@ -1,5 +1,6 @@
 # Task5 staged performance verification
 
+This page preserves its historical trial state. See [current performance verification](performance90.md) for later speed, acceleration and stop-reuse changes.
 Each category is built and run over the complete local contact-instrumented maze before the next category is changed. The reference is f592b6e. PID gains, arrival tolerances and hard clearance thresholds remain unchanged.
 
 1. P10 turn space: the stopped scan predicts only 8 mm minimum clearance across the next 90-degree rotation. A 25 mm body-left displacement predicts 33 mm clearance. Add 30 mm left to P09_P10 and shorten P10_P11 by 30 mm so later nominal targets are preserved.
