@@ -253,6 +253,7 @@ private:
               elapsed(scan_received_) <= .5;
     reset();
     stage_started_ = Clock::now();
+    stage_ros_started_ = now();
     RCLCPP_INFO(
       get_logger(), "Target P%02zu: x=%.6f y=%.6f yaw=%.6f; %s", index_ + 1, tx_, ty_, heading_,
       moving_ ? "MOVE with reused stop" : "TURN then MOVE");
@@ -325,6 +326,38 @@ private:
       hold_ = now();
     }
     return (now() - hold_).seconds() >= stop_hold_;
+  }
+
+  /** @brief Explain turn convergence and stopped-hold gates without modifying control state.
+   * @param[in] e tick() or complete_stage() supplies the current signed heading error in radians.
+   * @par Diagnostic flow
+   * Reads accepted odom velocities, holding_/hold_ after the current tick's gate update,
+   * and stage start times. Writes only an INFO log at most every 0.5 steady seconds.
+   * @note Angle, angular-speed and linear-speed flags expose all failing gates. The reason
+   * selects the first failure; hold starts only after all gates pass. ROS/wall elapsed times
+   * help distinguish slow simulation from slow convergence. No commands or PID state change.
+   */
+  void log_turn_settling(double e)
+  {
+    if (moving_) return;
+    const bool angle_ok = std::abs(e) < .01;
+    const bool angular_ok = std::abs(wz_) <= .02;
+    const double linear_speed = std::hypot(vx_, vy_);
+    const bool linear_ok = linear_speed <= .01;
+    const double held = holding_ ? std::max(0.0, (now() - hold_).seconds()) : 0.0;
+    const char * reason = !angle_ok           ? "angle"
+                          : !angular_ok       ? "angular_speed"
+                          : !linear_ok        ? "linear_speed"
+                          : held < stop_hold_ ? "hold"
+                                              : "ready";
+    RCLCPP_INFO_THROTTLE(
+      get_logger(), diagnostic_clock_, 500,
+      "TURN_SETTLING P%02zu stage=%s reason=%s | error=%.6f rad tol=0.010000 angle_ok=%d | "
+      "measured_wz=%.6f limit=0.020000 angular_ok=%d | linear_speed=%.6f limit=0.010000 "
+      "linear_ok=%d | hold_ros=%.3f/%.3f s | stage_ros=%.3f stage_wall=%.3f s",
+      index_ + 1, final_turn_active_ ? "FINAL_TURN" : "TURN", reason, e, angle_ok, wz_, angular_ok,
+      linear_speed, linear_ok, held, stop_hold_, (now() - stage_ros_started_).seconds(),
+      elapsed(stage_started_));
   }
 
   /** @brief Apply laser-based near-wall course correction to a moving body-frame velocity.
@@ -504,6 +537,7 @@ private:
     heading_ = yaw_ - M_PI;
     reset();
     stage_started_ = Clock::now();
+    stage_ros_started_ = now();
     RCLCPP_INFO(
       get_logger(), "Final clockwise turn: start=%.6f target=%.6f delta=-3.141593 rad", yaw_,
       heading_);
@@ -520,7 +554,9 @@ private:
   void complete_stage(double distance, double e)
   {
     stop();
-    if (!settled(true)) return;
+    const bool ready = settled(true);
+    log_turn_settling(e);
+    if (!ready) return;
     if (final_turn_active_) {
       RCLCPP_INFO(
         get_logger(), "Final clockwise turn completed: rotation=%.6f error=%.6f rad",
@@ -533,6 +569,7 @@ private:
       moving_ = true;
       reset();
       stage_started_ = Clock::now();
+      stage_ros_started_ = now();
       RCLCPP_INFO(get_logger(), "P%02zu MOVE", index_ + 1);
     } else {
       RCLCPP_INFO(
@@ -583,6 +620,7 @@ private:
       return;
     }
     holding_ = false;
+    log_turn_settling(e);
     geometry_msgs::msg::Twist cmd;
     cmd.angular.z = yaw_pid_->update(e, wz_, dt);
     if (moving_ && std::abs(e) < .15) move(dt, cmd);
@@ -637,8 +675,12 @@ private:
   Clock::time_point started_{Clock::now()};  ///< Steady startup deadline base.
   Clock::time_point odom_received_{};        ///< Steady time of last accepted odom.
   Clock::time_point scan_received_{};        ///< Steady time of last accepted scan.
-  Clock::time_point stage_started_{};        ///< Steady TURN/MOVE deadline base.
-  Clock::time_point blocked_since_{};        ///< Steady start of continuous obstacle hold.
+  rclcpp::Clock diagnostic_clock_{
+    RCL_STEADY_TIME};  ///< Throttles turn diagnostics in real elapsed time.
+  rclcpp::Time stage_ros_started_{
+    0, 0, RCL_ROS_TIME};               ///< ROS-time counterpart of stage_started_, for logs only.
+  Clock::time_point stage_started_{};  ///< Steady TURN/MOVE deadline base.
+  Clock::time_point blocked_since_{};  ///< Steady start of continuous obstacle hold.
   rclcpp::Time odom_stamp_{0, 0, RCL_ROS_TIME};  ///< Last accepted odom ROS stamp.
   rclcpp::Time scan_stamp_{0, 0, RCL_ROS_TIME};  ///< Last accepted scan ROS stamp.
   rclcpp::Time last_{0, 0, RCL_ROS_TIME};        ///< Last PID update ROS time.

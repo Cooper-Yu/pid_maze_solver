@@ -18,3 +18,6 @@ required) to compare all 14 compiled MotionStep defaults with the shipped YAML.
 This prevents the bare command and parameter-file route from drifting apart.
 
 The terminal half-turn regression covers branch-cut crossing, initial opposite-direction noise and overshoot correction.
+
+
+In an isolated domain, run `ROS_DOMAIN_ID=198 ROS_LOCALHOST_ONLY=1 python3 test/turn_diagnostics.py` with the ROS overlay sourced to verify diagnostic gates and partial-route termination.

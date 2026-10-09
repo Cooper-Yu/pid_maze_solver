@@ -119,3 +119,10 @@ terminal turn stops and faults; clearance translation is disabled for this actio
 behavior. A partial `last_point` trial does not append this action. The previous
 sub-90-second measurements exclude this newly added turn; the full new task has
 no 90-second acceptance limit. See [terminal turn verification](docs/final_turn.md).
+
+
+## Diagnose slow turns
+
+`TURN_SETTLING` reports the current failing gate, measured speeds, continuous hold,
+and ROS/steady elapsed times. See [field guide](docs/turn_diagnostics.md).
+This instrumentation does not change control parameters.

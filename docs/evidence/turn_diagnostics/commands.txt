@@ -1,0 +1,2 @@
+bash /home/cooper/ros2_ws/training_notes/checkpoint18/robot_control_rosbot_xl/code_lab/verify_task5_survey.bash --ros-args -p last_point:=4
+ROS_DOMAIN_ID=198 ROS_LOCALHOST_ONLY=1 python3 test/turn_diagnostics.py

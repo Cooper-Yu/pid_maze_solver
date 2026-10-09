@@ -1,0 +1,20 @@
+{
+  "local_run": "/home/cooper/ros2_ws/training_notes/checkpoint18/robot_control_rosbot_xl/code_lab/runtime_logs/task5_survey_20261010_000414",
+  "local_turn_seconds": {
+    "02": 0.22,
+    "03": 3.06,
+    "04": 3.14
+  },
+  "cloud_turn_seconds": {
+    "02": 0.38,
+    "03": 12.94,
+    "04": 12.659,
+    "05": 16.7,
+    "06": 18.901,
+    "11": 19.479,
+    "14": 14.38,
+    "15": 14.12
+  },
+  "local_exit_code": 0,
+  "fixture": "angle/angular_speed/linear_speed/hold labels PASS; partial trial excludes final turn"
+}
