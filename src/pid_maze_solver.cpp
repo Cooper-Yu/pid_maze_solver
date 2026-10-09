@@ -7,6 +7,7 @@
 
 #include "geometry_msgs/msg/twist.hpp"
 #include "nav_msgs/msg/odometry.hpp"
+#include "pid_maze_solver/motion.hpp"
 #include "pid_maze_solver/pid.hpp"
 #include "pid_maze_solver/route.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -27,8 +28,7 @@ public:
   {
     if (!get_node_parameters_interface()->get_parameter_overrides().count("use_sim_time"))
       set_parameter(rclcpp::Parameter("use_sim_time", true));
-    route_ = maze::with_positions(
-      declare_parameter<std::vector<double>>("waypoint_xy", std::vector<double>{}));
+    configure_route();
     speed_ = positive("max_speed", 0.12);
     accel_ = positive("max_acceleration", 0.25);
     const double kp = positive("distance_kp", 1.5), ki = nonnegative("distance_ki", 0.0),
@@ -39,9 +39,9 @@ public:
       positive("turn_kp", 1.8), nonnegative("turn_ki", 0.03), nonnegative("turn_kd", 0.35),
       positive("max_yaw_rate", 0.6), 0.6);
     stage_timeout_ = positive("stage_timeout", 60.0);
-    last_index_ = declare_parameter<int>("last_point", 15);
-    if (last_index_ < 2 || last_index_ > 15)
-      throw std::invalid_argument("last_point must be 2..15");
+    last_index_ = declare_parameter<int>("last_point", static_cast<int>(route_.size()));
+    if (last_index_ < 2 || last_index_ > static_cast<int>(route_.size()))
+      throw std::invalid_argument("last_point must be within generated route, at least 2");
     pub_ = create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
       "/odometry/filtered", rclcpp::SensorDataQoS(),
@@ -68,6 +68,37 @@ public:
   }
 
 private:
+  /** @brief Load either named motion steps or the compatibility fixed-point route.
+   * @par Route generation
+   * Reads node parameters before subscriptions start; relative steps generate every target XY.
+   * @note Invalid modes and conflicting XY/step sources throw before motion is possible.
+   */
+  void configure_route()
+  {
+    const auto mode = declare_parameter<std::string>("route_mode", "motion_steps");
+    const auto xy = declare_parameter<std::vector<double>>("waypoint_xy", std::vector<double>{});
+    side_centering_ = declare_parameter<bool>("side_centering", true);
+    if (mode == "fixed_points") {
+      const auto fixed = maze::with_positions(xy);
+      route_.assign(fixed.begin(), fixed.end());
+      return;
+    }
+    if (mode != "motion_steps" || !xy.empty())
+      throw std::invalid_argument(
+        "motion_steps rejects waypoint_xy; select fixed_points explicitly");
+    steps_ = maze::default_steps;
+    for (auto & step : steps_) {
+      const auto prefix = "steps." + step.name + ".";
+      step.turn =
+        declare_parameter<double>(prefix + "turn_deg", step.turn * 180 / M_PI) * M_PI / 180;
+      step.forward = declare_parameter<double>(prefix + "forward_m", step.forward);
+      step.left = declare_parameter<double>(prefix + "left_m", step.left);
+    }
+    route_ = maze::generate_route(steps_);
+    RCLCPP_INFO(
+      get_logger(), "Generated %zu targets from relative motion distances", steps_.size());
+  }
+
   /** @brief Read finite nonnegative gain/bound from node parameter overrides.
   *
  * @param[in] key Constructor parameter name.
@@ -198,6 +229,11 @@ private:
     tx_ = ox_ + std::cos(oyaw_) * p.x - std::sin(oyaw_) * p.y;
     ty_ = oy_ + std::sin(oyaw_) * p.x + std::cos(oyaw_) * p.y;
     heading_ = oyaw_ + p.yaw;
+    nominal_tx_ = tx_;
+    nominal_ty_ = ty_;
+    center_offset_ = 0;
+    center_count_ = 0;
+    center_scan_ = scan_stamp_;
     turn_x_ = x_;
     turn_y_ = y_;
     moving_ = false;
@@ -330,6 +366,40 @@ private:
     return true;
   }
 
+  /** @brief Adjust the current generated target toward a verified corridor centerline.
+   * @par Bounded wall correction
+   * Only forward-dominant motion uses bilateral centering. Three fresh consistent fits are
+   * required; openings disable further correction and retain the accepted track offset.
+   * @note Reads scan points and current odom; writes tx_/ty_ within 6 cm of the nominal target.
+   * Later nominal targets remain generated from the original motion sequence, not odom error.
+   */
+  void center_from_sides()
+  {
+    if (!side_centering_ || steps_.empty() || !moving_ || scan_stamp_ <= center_scan_) return;
+    center_scan_ = scan_stamp_;
+    const auto & step = steps_[index_ - 1];
+    if (
+      step.forward < .1 || std::abs(step.left) > .08 || std::abs(maze::wrap(heading_ - yaw_)) > .03)
+      return;
+    const auto left = maze::fit_side(points_, 1), right = maze::fit_side(points_, -1);
+    if (!maze::corridor(left, right)) {
+      center_count_ = 0;
+      return;
+    }
+    if (++center_count_ < 3) return;
+    const double nx = -std::sin(heading_), ny = std::cos(heading_);
+    const double requested = std::clamp(
+      (x_ - nominal_tx_) * nx + (y_ - nominal_ty_) * ny + (left.distance - right.distance) / 2,
+      -.06, .06);
+    center_offset_ += std::clamp(requested - center_offset_, -.004, .004);
+    tx_ = nominal_tx_ + nx * center_offset_;
+    ty_ = nominal_ty_ + ny * center_offset_;
+    RCLCPP_INFO_THROTTLE(
+      get_logger(), *get_clock(), 1000,
+      "SIDE_CENTER P%02zu left=%.3f right=%.3f target_offset=%.3f m", index_ + 1, left.distance,
+      right.distance, center_offset_);
+  }
+
   /** @brief Compute translational PID in odom then rotate output into body coordinates.
   *
  * @param[in] dt Positive ROS seconds from tick().
@@ -427,6 +497,7 @@ private:
       return;
     }
     last_ = now();
+    center_from_sides();
     double e = maze::wrap(heading_ - yaw_), distance = std::hypot(tx_ - x_, ty_ - y_);
     bool close = std::abs(e) < .01 && (!moving_ || distance < .015);
     if (close) {
@@ -462,12 +533,20 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_;        ///< Sole velocity publisher.
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;  ///< Advancing pose feedback.
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;  ///< Wall observations.
-  rclcpp::TimerBase::SharedPtr timer_;              ///< 20ms steady timer, ROS-time PID updates.
-  tf2_ros::Buffer buffer_;                          ///< Scan-to-body transforms.
-  tf2_ros::TransformListener listener_;             ///< TF subscription owner.
-  std::vector<std::array<double, 2>> points_;       ///< Accepted laser points in base_link, meters.
-  std::array<maze::Point, 15> route_{maze::route};  ///< Frozen route XY and unchanged supplied yaw.
-  std::string frame_;                        ///< Odom frame retained to detect frame changes.
+  rclcpp::TimerBase::SharedPtr timer_;         ///< 20ms steady timer, ROS-time PID updates.
+  tf2_ros::Buffer buffer_;                     ///< Scan-to-body transforms.
+  tf2_ros::TransformListener listener_;        ///< TF subscription owner.
+  std::vector<std::array<double, 2>> points_;  ///< Accepted laser points in base_link, meters.
+  std::vector<maze::Point> route_;             ///< Generated nominal route poses relative to P01.
+  std::vector<maze::MotionStep>
+    steps_;                ///< Relative actions; empty in fixed-point compatibility mode.
+  bool side_centering_{};  ///< Enables gated bilateral wall centering for forward motion.
+  int center_count_{};     ///< Consecutive accepted fresh side-wall fits in this segment.
+  rclcpp::Time center_scan_{0, 0, RCL_ROS_TIME};  ///< Last scan consumed for centering.
+  double center_offset_{};  ///< Accepted cross-track target shift, meters, bounded to +/-0.06.
+  double nominal_tx_{};     ///< Generated odom target x before wall correction, meters.
+  double nominal_ty_{};     ///< Generated odom target y before wall correction, meters.
+  std::string frame_;       ///< Odom frame retained to detect frame changes.
   std::unique_ptr<maze::AxisPid> px_;        ///< Odom x PID; state reset at each stage.
   std::unique_ptr<maze::AxisPid> py_;        ///< Odom y PID; state reset at each stage.
   std::unique_ptr<maze::AxisPid> yaw_pid_;   ///< Heading PID; radian error and body yaw-rate input.

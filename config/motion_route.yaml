@@ -1,0 +1,61 @@
+pid_maze_solver:
+  ros__parameters:
+    route_mode: motion_steps
+    side_centering: true
+    steps:
+      P01_P02:
+        turn_deg: 0.0
+        forward_m: 0.35
+        left_m: 0.0
+      P02_P03:
+        turn_deg: -45.0
+        forward_m: 0.21
+        left_m: 0.0
+      P03_P04:
+        turn_deg: -45.0
+        forward_m: 1.15
+        left_m: 0.03
+      P04_P05:
+        turn_deg: 90.0
+        forward_m: 0.46
+        left_m: -0.012
+      P05_P06:
+        turn_deg: 90.0
+        forward_m: 0.5
+        left_m: -0.03
+      P06_P07:
+        turn_deg: 0.0
+        forward_m: 0.0
+        left_m: -0.34
+      P07_P08:
+        turn_deg: 0.0
+        forward_m: 0.55
+        left_m: 0.0
+      P08_P09:
+        turn_deg: 0.0
+        forward_m: 0.0
+        left_m: -0.615
+      P09_P10:
+        turn_deg: 0.0
+        forward_m: 0.796
+        left_m: 0.0
+      P10_P11:
+        turn_deg: 90.0
+        forward_m: 0.471
+        left_m: 0.0
+      P11_P12:
+        turn_deg: 0.0
+        forward_m: 0.0
+        left_m: 0.256
+      P12_P13:
+        turn_deg: 0.0
+        forward_m: 0.558
+        left_m: 0.0
+      P13_P14:
+        turn_deg: -45.0
+        forward_m: 0.448
+        left_m: 0.0
+      P14_P15:
+        turn_deg: 45.0
+        forward_m: 0.564
+        left_m: 0.0

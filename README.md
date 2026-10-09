@@ -1,16 +1,15 @@
 # PID Maze Solver — Task5
 
-A simulation-first holonomic ROSBot XL controller. The 15 reference positions
-and destination headings supplied by the learner are preserved in
-`include/pid_maze_solver/route.hpp`. The first stopped odometry pose anchors P01;
-the initial yaw defines route +x. Placement must match the demonstrated maze
-start. This package does not silently run Task2 wall placement or move the origin.
+A simulation-first holonomic ROSBot XL controller. The default route is a
+sequence of relative turns and forward/left distances in `motion.hpp`, configurable
+by named ROS parameters. The first stopped odometry pose anchors P01, and all
+nominal waypoint poses are generated from that origin. Placement must match the
+maze start; startup does not reposition the robot automatically.
 
-Each destination uses TURN → MOVE → stopped hold. Destination yaw is held while
-moving, so P06→P07, P08→P09 and P11→P12 include lateral motion. The controller
-freezes world targets from the original route, not each imperfect stop. This is
-the user's selected interpretation; it retains the official alternating turn/move
-stages even where the supplied headings require holonomic translation.
+Each destination uses TURN -> MOVE -> stopped hold. Strafes keep the planned
+heading. Reliable paired side walls can correct a forward segment's cross-track
+target within 6 cm; openings do not trigger blind recentering. See
+[relative actions and wall correction](docs/motion_steps.md).
 
 ```bash
 cd ~/ros2_ws
@@ -50,7 +49,8 @@ blocked motion or a stage timeout stop the robot and exit with failure.
 
 ## Reading order
 
-- `include/pid_maze_solver/route.hpp`: source poses and footprint geometry.
+- `include/pid_maze_solver/motion.hpp`: relative actions, waypoint generation and wall fitting.
+- `include/pid_maze_solver/route.hpp`: compatibility poses and footprint geometry.
 - `include/pid_maze_solver/pid.hpp`: reused PID math (from Task4 a9beeac).
 - `src/pid_maze_solver.cpp`: PIDMazeSolver, interfaces, state transitions and guards.
 - `test/test_route.cpp`: heading preservation and footprint regressions.
@@ -75,7 +75,7 @@ radius .05 and thickness .05. Revalidate these assumptions for another model.
 
 ## Laser-measured route trial
 
-The original 15-point route remains the default. An optional `waypoint_xy`
+The original 15-point table remains available in `fixed_points` mode. An optional `waypoint_xy`
 parameter supplies exactly 15 XY pairs in the P01 route frame; all yaw values
 remain the original values. Invalid length, nonfinite values or a moved P01
 origin are rejected before starting. `config/measured_route.yaml` contains a

@@ -51,3 +51,8 @@ contact-instrumented maze run completed all 14 legs, exit 0, zero classified
 wall contact points, with 37 transient obstacle holds (P06: 11, P08: 8, P14: 18)
 and no clearance translation. This is local evidence, not a cloud acceptance.
 See [full survey](laser_survey.md); six GTests now include override validation.
+
+
+## Relative-action default
+
+The default now generates poses from named turn/forward/left actions and uses gated side-wall correction. See [motion verification](motion_steps.md) and [raw summary](evidence/motion_steps/summary.json). Nine GTests and three runtime guards passed. The first action trial completed with 924 obstacle-hold log entries; shortening the P06 approach by 30 mm and compensating on P07_P08 was retested without weakening the guard.

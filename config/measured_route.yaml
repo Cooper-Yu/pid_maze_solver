@@ -1,5 +1,6 @@
 pid_maze_solver:
   ros__parameters:
+    route_mode: fixed_points
     waypoint_xy:
       - 0.0
       - 0.0

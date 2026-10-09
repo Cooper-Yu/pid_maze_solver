@@ -2,6 +2,7 @@
 
 #include <limits>
 
+#include "pid_maze_solver/motion.hpp"
 #include "pid_maze_solver/route.hpp"
 
 TEST(Route, PreserveStrafingHeadings)
@@ -55,4 +56,37 @@ TEST(Route, RejectInvalidCoordinateOverride)
   xy[0] = 0.0;
   xy[6] = std::numeric_limits<double>::quiet_NaN();
   EXPECT_THROW(maze::with_positions(xy), std::invalid_argument);
+}
+
+TEST(Motion, GenerateTargetsFromBodyActions)
+{
+  const auto r = maze::generate_route(
+    {{"forward", 0, 1, 0}, {"right_turn", -M_PI / 2, 1, 0}, {"strafe", 0, 0, -.5}});
+  EXPECT_NEAR(r[1].x, 1, 1e-12);
+  EXPECT_NEAR(r[2].y, -1, 1e-12);
+  EXPECT_NEAR(r[3].x, .5, 1e-12);
+  EXPECT_NEAR(r[3].y, -1, 1e-12);
+  EXPECT_NEAR(r[3].yaw, -M_PI / 2, 1e-12);
+}
+
+TEST(Motion, RejectInvalidSteps)
+{
+  EXPECT_THROW(maze::generate_route({}), std::invalid_argument);
+  EXPECT_THROW(maze::generate_route({{"bad", 4, 0, 0}}), std::invalid_argument);
+  EXPECT_THROW(maze::generate_route({{"bad", 0, NAN, 0}}), std::invalid_argument);
+}
+
+TEST(Walls, CenterOnlyWithConsistentTwoSidedSupport)
+{
+  std::vector<std::array<double, 2>> points;
+  for (int i = -10; i <= 10; ++i) {
+    points.push_back({i * .009, .28});
+    points.push_back({i * .009, -.26});
+  }
+  const auto left = maze::fit_side(points, 1), right = maze::fit_side(points, -1);
+  EXPECT_TRUE(maze::corridor(left, right));
+  EXPECT_NEAR((left.distance - right.distance) / 2, .01, 1e-12);
+  EXPECT_FALSE(maze::corridor(left, {}));
+  EXPECT_FALSE(maze::corridor(left, {true, .6, 0}));
+  EXPECT_FALSE(maze::corridor(left, {true, .26, .2}));
 }

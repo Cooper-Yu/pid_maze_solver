@@ -42,6 +42,6 @@ Gazebo contact monitor received 113565 packets and counted 945787 floor contact 
 
 The baseline survey stopped at P06 with OBSTACLE_BLOCKED and exit 2. This supersedes any assumption that one previous successful nominal run established repeatability. Both failures and successes are preserved in the training logs.
 
-Six unit tests cover geometry and coordinate-override validation. YAML is optional; the original route remains the default. Cloud verification remains pending; no Task5 tag is created.
+Six unit tests cover geometry and coordinate-override validation. This historical run used the XY candidate. The current default generates targets from motion steps; use route_mode:=fixed_points to reproduce this older route. Cloud verification remains pending; no Task5 tag is created.
 
 [Raw survey](evidence/laser_survey/laser_survey.json) · [Run log](evidence/laser_survey/controller.log) · [Summary](evidence/laser_survey/summary.json) · [Action sequence](motion_plan.md)
