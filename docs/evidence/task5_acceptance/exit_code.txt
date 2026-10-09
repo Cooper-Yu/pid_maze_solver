@@ -1,0 +1,2 @@
+user:~/ros2_ws$ echo "exit_code=$?"
+exit_code=0
