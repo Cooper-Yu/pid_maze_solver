@@ -88,3 +88,7 @@ ros2 run pid_maze_solver pid_maze_solver --ros-args --params-file \
 
 Read [motion sequence](docs/motion_plan.md) and [laser survey](docs/laser_survey.md)
 for measured distances, tested coordinates and the acceptance boundary.
+
+## Performance experiments
+
+[Staged optimization report](docs/optimization.md) records each full-route trial, rejected variants and current acceptance limits. The retained P10 approach disables bilateral centering for that segment to preserve a 30 mm turn-clearance offset; repulsion and hard obstacle protection remain enabled. Default speed and all stopped holds remain unchanged.

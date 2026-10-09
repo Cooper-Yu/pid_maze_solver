@@ -1,0 +1,32 @@
+diff --git a/config/motion_route.yaml b/config/motion_route.yaml
+index 1d462ac..ae7a79c 100644
+--- a/config/motion_route.yaml
++++ b/config/motion_route.yaml
+@@ -38,10 +38,10 @@ pid_maze_solver:
+       P09_P10:
+         turn_deg: 0.0
+         forward_m: 0.796
+-        left_m: 0.0
++        left_m: 0.03
+       P10_P11:
+         turn_deg: 90.0
+-        forward_m: 0.471
++        forward_m: 0.441
+         left_m: 0.0
+       P11_P12:
+         turn_deg: 0.0
+diff --git a/include/pid_maze_solver/motion.hpp b/include/pid_maze_solver/motion.hpp
+index 1002002..6b18bf1 100644
+--- a/include/pid_maze_solver/motion.hpp
++++ b/include/pid_maze_solver/motion.hpp
+@@ -27,8 +27,8 @@ inline const std::vector<MotionStep> default_steps{
+   {"P06_P07", 0, 0, -.34},
+   {"P07_P08", 0, .55, 0},
+   {"P08_P09", 0, 0, -.615},
+-  {"P09_P10", 0, .796, 0},
+-  {"P10_P11", M_PI / 2, .471, 0},
++  {"P09_P10", 0, .796, .03},
++  {"P10_P11", M_PI / 2, .441, 0},
+   {"P11_P12", 0, 0, .256},
+   {"P12_P13", 0, .528, 0},
+   {"P13_P14", -M_PI / 4, .448, 0},

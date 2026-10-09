@@ -73,3 +73,5 @@ P05_P06 now advances 0.50 m, leaving 30 mm more front-wall clearance than the fi
 Default command completed 14 legs and exited 0. Maximum stopped odometry error: 0.013385 m / 0.000977 rad. The contact observer received 118466 packets with 981929 floor points and zero above-floor robot contact points. This supports this local run, not untested cloud geometry. Side centering produced 16 logged updates; 66 transient obstacle holds remain a performance limitation. Nine unit tests and three runtime guard fixtures passed. Cloud acceptance is pending; no Task5 tag.
 
 [Run summary](evidence/motion_steps/summary.json) · [Controller log](evidence/motion_steps/controller.log)
+
+Per-step side_centering can disable the centerline objective for a deliberately offset turn approach. P09_P10 uses this setting; laser repulsion and hard clearance checks stay enabled. The global side_centering switch still disables centering for every step.

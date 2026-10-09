@@ -1,0 +1,238 @@
+diff --git a/config/motion_route.yaml b/config/motion_route.yaml
+index 1d462ac..dfaad65 100644
+--- a/config/motion_route.yaml
++++ b/config/motion_route.yaml
+@@ -2,60 +2,76 @@ pid_maze_solver:
+   ros__parameters:
+     route_mode: motion_steps
+     side_centering: true
++    max_speed: 0.15
+     steps:
+       P01_P02:
+         turn_deg: 0.0
+         forward_m: 0.35
+         left_m: 0.0
++        max_speed: 0.12
+       P02_P03:
+         turn_deg: -45.0
+         forward_m: 0.21
+         left_m: 0.0
++        max_speed: 0.12
+       P03_P04:
+         turn_deg: -45.0
+         forward_m: 1.15
+         left_m: 0.03
++        max_speed: 0.15
+       P04_P05:
+         turn_deg: 90.0
+         forward_m: 0.46
+         left_m: -0.012
++        max_speed: 0.12
+       P05_P06:
+         turn_deg: 90.0
+         forward_m: 0.5
+         left_m: -0.03
++        max_speed: 0.12
+       P06_P07:
+         turn_deg: 0.0
+         forward_m: 0.0
+         left_m: -0.34
++        max_speed: 0.12
+       P07_P08:
+         turn_deg: 0.0
+         forward_m: 0.55
+         left_m: 0.0
++        max_speed: 0.12
+       P08_P09:
+         turn_deg: 0.0
+         forward_m: 0.0
+         left_m: -0.615
++        max_speed: 0.12
+       P09_P10:
+         turn_deg: 0.0
+         forward_m: 0.796
+-        left_m: 0.0
++        left_m: 0.03
++        max_speed: 0.15
++        side_centering: false
+       P10_P11:
+         turn_deg: 90.0
+-        forward_m: 0.471
++        forward_m: 0.441
+         left_m: 0.0
++        max_speed: 0.12
+       P11_P12:
+         turn_deg: 0.0
+         forward_m: 0.0
+         left_m: 0.256
++        max_speed: 0.12
+       P12_P13:
+         turn_deg: 0.0
+         forward_m: 0.558
+         left_m: 0.0
++        max_speed: 0.15
+       P13_P14:
+         turn_deg: -45.0
+         forward_m: 0.448
+         left_m: 0.0
++        max_speed: 0.12
+       P14_P15:
+         turn_deg: 45.0
+         forward_m: 0.564
+         left_m: 0.0
++        max_speed: 0.12
+diff --git a/include/pid_maze_solver/motion.hpp b/include/pid_maze_solver/motion.hpp
+index 1002002..075e058 100644
+--- a/include/pid_maze_solver/motion.hpp
++++ b/include/pid_maze_solver/motion.hpp
+@@ -15,22 +15,25 @@ struct MotionStep
+   double turn;       ///< Signed change from previous planned heading, radians.
+   double forward;    ///< Signed travel along the new heading, meters.
+   double left;       ///< Signed travel left of the new heading, meters; negative is right.
++  bool side_centering{
++    true};  ///< Allow bilateral centering; disable for a planned turn-clearance offset.
++  double max_speed{.12};  ///< Segment translation cap in m/s; global and near-wall caps also apply.
+ };
+ 
+ /** @brief Editable distances derived from the measured route, without stored target XY poses. */
+ inline const std::vector<MotionStep> default_steps{
+   {"P01_P02", 0, .35, 0},
+   {"P02_P03", -M_PI / 4, .21, 0},
+-  {"P03_P04", -M_PI / 4, 1.15, .03},
++  {"P03_P04", -M_PI / 4, 1.15, .03, true, .15},
+   {"P04_P05", M_PI / 2, .46, -.012},
+   {"P05_P06", M_PI / 2, .50, -.03},
+   {"P06_P07", 0, 0, -.34},
+   {"P07_P08", 0, .55, 0},
+   {"P08_P09", 0, 0, -.615},
+-  {"P09_P10", 0, .796, 0},
+-  {"P10_P11", M_PI / 2, .471, 0},
++  {"P09_P10", 0, .796, .03, false, .15},
++  {"P10_P11", M_PI / 2, .441, 0},
+   {"P11_P12", 0, 0, .256},
+-  {"P12_P13", 0, .528, 0},
++  {"P12_P13", 0, .528, 0, true, .15},
+   {"P13_P14", -M_PI / 4, .448, 0},
+   {"P14_P15", M_PI / 4, .564, 0},
+ };
+@@ -50,6 +53,8 @@ inline std::vector<Point> generate_route(const std::vector<MotionStep> & steps)
+   for (const auto & step : steps) {
+     if (!std::isfinite(step.turn) || !std::isfinite(step.forward) || !std::isfinite(step.left))
+       throw std::invalid_argument("motion steps must be finite");
++    if (!std::isfinite(step.max_speed) || step.max_speed <= 0)
++      throw std::invalid_argument("segment speed must be finite and positive");
+     if (std::abs(step.turn) > M_PI)
+       throw std::invalid_argument("turn must be within +/-180 degrees");
+     const auto & previous = result.back();
+diff --git a/include/pid_maze_solver/pid.hpp b/include/pid_maze_solver/pid.hpp
+index 627d06c..fed6c30 100644
+--- a/include/pid_maze_solver/pid.hpp
++++ b/include/pid_maze_solver/pid.hpp
+@@ -43,21 +43,27 @@ public:
+    *
+  * @param[in] dt Positive ROS-time interval supplied by PIDMazeSolver::tick(), seconds.
+    *
++ * @param[in] speed_limit Per-tick translation cap from PIDMazeSolver::move(), m/s; zero
++ * retains the configured angular bound for tick(). Positive values can only reduce the bound.
+  * @return Bounded m/s or rad/s command returned to PIDMazeSolver::tick() or move() for body-frame conversion, correction and guarded publication; zero for invalid input.
+    *
+  * @note Writes internal integral/output; integration is blocked when pushing saturation.
+    */
+-  double update(double error, double rate, double dt)
++  double update(double error, double rate, double dt, double speed_limit = 0.0)
+   {
+-    if (!std::isfinite(error) || !std::isfinite(rate) || !std::isfinite(dt) || dt <= 0.0) {
++    if (
++      !std::isfinite(error) || !std::isfinite(rate) || !std::isfinite(dt) || dt <= 0.0 ||
++      !std::isfinite(speed_limit) || speed_limit < 0) {
+       reset();
+       return 0.0;
+     }
++    const double bound = speed_limit > 0 ? std::min(speed_, speed_limit) : speed_;
+     const double candidate = std::clamp(integral_ + error * dt, -0.5, 0.5);
+     const double requested = kp_ * error + ki_ * candidate - kd_ * rate;
+-    if (std::abs(requested) <= speed_ || error * requested < 0.0) integral_ = candidate;
+-    const double limited = std::clamp(kp_ * error + ki_ * integral_ - kd_ * rate, -speed_, speed_);
++    if (std::abs(requested) <= bound || error * requested < 0.0) integral_ = candidate;
++    const double limited = std::clamp(kp_ * error + ki_ * integral_ - kd_ * rate, -bound, bound);
+     command_ += std::clamp(limited - command_, -acceleration_ * dt, acceleration_ * dt);
++    command_ = std::clamp(command_, -bound, bound);
+     return command_;
+   }
+ 
+diff --git a/src/pid_maze_solver.cpp b/src/pid_maze_solver.cpp
+index 4f75390..55db273 100644
+--- a/src/pid_maze_solver.cpp
++++ b/src/pid_maze_solver.cpp
+@@ -29,7 +29,7 @@ public:
+     if (!get_node_parameters_interface()->get_parameter_overrides().count("use_sim_time"))
+       set_parameter(rclcpp::Parameter("use_sim_time", true));
+     configure_route();
+-    speed_ = positive("max_speed", 0.12);
++    speed_ = positive("max_speed", steps_.empty() ? .12 : .15);
+     accel_ = positive("max_acceleration", 0.25);
+     const double kp = positive("distance_kp", 1.5), ki = nonnegative("distance_ki", 0.0),
+                  kd = nonnegative("distance_kd", 0.0);
+@@ -93,6 +93,8 @@ private:
+         declare_parameter<double>(prefix + "turn_deg", step.turn * 180 / M_PI) * M_PI / 180;
+       step.forward = declare_parameter<double>(prefix + "forward_m", step.forward);
+       step.left = declare_parameter<double>(prefix + "left_m", step.left);
++      step.max_speed = positive(prefix + "max_speed", step.max_speed);
++      step.side_centering = declare_parameter<bool>(prefix + "side_centering", step.side_centering);
+     }
+     route_ = maze::generate_route(steps_);
+     RCLCPP_INFO(
+@@ -379,7 +381,8 @@ private:
+     center_scan_ = scan_stamp_;
+     const auto & step = steps_[index_ - 1];
+     if (
+-      step.forward < .1 || std::abs(step.left) > .08 || std::abs(maze::wrap(heading_ - yaw_)) > .03)
++      !step.side_centering || step.forward < .1 || std::abs(step.left) > .08 ||
++      std::abs(maze::wrap(heading_ - yaw_)) > .03)
+       return;
+     const auto left = maze::fit_side(points_, 1), right = maze::fit_side(points_, -1);
+     if (!maze::corridor(left, right)) {
+@@ -400,6 +403,21 @@ private:
+       right.distance, center_offset_);
+   }
+ 
++  /** @brief Bound segment cruise speed by global, arrival and observed wall-clearance limits.
++   * @return Translation cap consumed by move() for both axis PID and final body command.
++   * @note Reads current target, pose and TF-transformed scan. Within 0.25 m of the goal,
++   * or within 0.08 m of the modeled footprint, cap at 0.12 m/s. No gain/state is changed.
++   */
++  double translation_limit() const
++  {
++    double limit = steps_.empty() ? speed_ : std::min(speed_, steps_[index_ - 1].max_speed);
++    bool near_wall = std::any_of(points_.begin(), points_.end(), [](const auto & p) {
++      return maze::clearance(p[0], p[1]) < .08;
++    });
++    if (near_wall || std::hypot(tx_ - x_, ty_ - y_) < .25) limit = std::min(limit, .12);
++    return limit;
++  }
++
+   /** @brief Compute translational PID in odom then rotate output into body coordinates.
+   *
+  * @param[in] dt Positive ROS seconds from tick().
+@@ -407,13 +425,17 @@ private:
+   * preserving the heading controller's angular z; correction and guard consume it next. */
+   void move(double dt, geometry_msgs::msg::Twist & cmd)
+   {
+-    const double c = std::cos(yaw_), s = std::sin(yaw_);
+-    double wx = px_->update(tx_ - x_, c * vx_ - s * vy_, dt),
+-           wy = py_->update(ty_ - y_, s * vx_ + c * vy_, dt);
+-    const double scale = std::min(1.0, speed_ / std::max(1e-9, std::hypot(wx, wy)));
++    const double c = std::cos(yaw_), s = std::sin(yaw_), limit = translation_limit();
++    double wx = px_->update(tx_ - x_, c * vx_ - s * vy_, dt, limit),
++           wy = py_->update(ty_ - y_, s * vx_ + c * vy_, dt, limit);
++    const double scale = std::min(1.0, limit / std::max(1e-9, std::hypot(wx, wy)));
+     cmd.linear.x = scale * (c * wx + s * wy);
+     cmd.linear.y = scale * (-s * wx + c * wy);
+     correct(cmd);
++    const double corrected_scale =
++      std::min(1.0, limit / std::max(1e-9, std::hypot(cmd.linear.x, cmd.linear.y)));
++    cmd.linear.x *= corrected_scale;
++    cmd.linear.y *= corrected_scale;
+   }
+ 
+   /** @brief Recover turning clearance by a bounded translation away from the nearest wall.

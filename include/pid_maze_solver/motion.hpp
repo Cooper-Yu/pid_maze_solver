@@ -15,6 +15,8 @@ struct MotionStep
   double turn;       ///< Signed change from previous planned heading, radians.
   double forward;    ///< Signed travel along the new heading, meters.
   double left;       ///< Signed travel left of the new heading, meters; negative is right.
+  bool side_centering{
+    true};  ///< Allow bilateral centering; disable for a planned turn-clearance offset.
 };
 
 /** @brief Editable distances derived from the measured route, without stored target XY poses. */
@@ -27,8 +29,8 @@ inline const std::vector<MotionStep> default_steps{
   {"P06_P07", 0, 0, -.34},
   {"P07_P08", 0, .55, 0},
   {"P08_P09", 0, 0, -.615},
-  {"P09_P10", 0, .796, 0},
-  {"P10_P11", M_PI / 2, .471, 0},
+  {"P09_P10", 0, .796, .03, false},
+  {"P10_P11", M_PI / 2, .441, 0},
   {"P11_P12", 0, 0, .256},
   {"P12_P13", 0, .528, 0},
   {"P13_P14", -M_PI / 4, .448, 0},

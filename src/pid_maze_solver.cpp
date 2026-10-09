@@ -93,6 +93,7 @@ private:
         declare_parameter<double>(prefix + "turn_deg", step.turn * 180 / M_PI) * M_PI / 180;
       step.forward = declare_parameter<double>(prefix + "forward_m", step.forward);
       step.left = declare_parameter<double>(prefix + "left_m", step.left);
+      step.side_centering = declare_parameter<bool>(prefix + "side_centering", step.side_centering);
     }
     route_ = maze::generate_route(steps_);
     RCLCPP_INFO(
@@ -379,7 +380,8 @@ private:
     center_scan_ = scan_stamp_;
     const auto & step = steps_[index_ - 1];
     if (
-      step.forward < .1 || std::abs(step.left) > .08 || std::abs(maze::wrap(heading_ - yaw_)) > .03)
+      !step.side_centering || step.forward < .1 || std::abs(step.left) > .08 ||
+      std::abs(maze::wrap(heading_ - yaw_)) > .03)
       return;
     const auto left = maze::fit_side(points_, 1), right = maze::fit_side(points_, -1);
     if (!maze::corridor(left, right)) {

@@ -56,3 +56,8 @@ See [full survey](laser_survey.md); six GTests now include override validation.
 ## Relative-action default
 
 The default now generates poses from named turn/forward/left actions and uses gated side-wall correction. See [motion verification](motion_steps.md) and [raw summary](evidence/motion_steps/summary.json). Nine GTests and three runtime guards passed. The first action trial completed with 924 obstacle-hold log entries; shortening the P06 approach by 30 mm and compensating on P07_P08 was retested without weakening the guard.
+
+
+## Staged optimization (CP18-C028)
+
+Only the P10 approach offset and per-segment centering switch are retained. Full runs completed in 108.03 and 106.91 seconds with zero classified wall contacts. Duplicate-stop reuse and selected-segment acceleration failed at P14 and were reverted. Full comparison and failure evidence: [optimization report](optimization.md). Existing single-run completion evidence does not certify P14 robustness under timing changes.
