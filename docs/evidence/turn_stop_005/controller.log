@@ -1,0 +1,220 @@
+[INFO] [1791562842.285443768] [pid_maze_solver]: Generated 14 targets from relative motion distances
+[INFO] [1791562842.289712558] [pid_maze_solver]: Task5: 15 points; destination yaw preserved; distance PID=(1.50,0.00,0.00)
+[WARN] [1791562842.289906495] [tf2_buffer]: Detected time source change. Clearing TF buffer.
+[INFO] [1791562842.870121035] [pid_maze_solver]: Route origin P01: x=0.000000 y=0.000000 yaw=-0.001041
+[INFO] [1791562842.870294788] [pid_maze_solver]: Target P02: x=0.350000 y=-0.000364 yaw=-0.001041; TURN then MOVE
+[INFO] [1791562842.889855544] [pid_maze_solver]: TURN_SETTLING P02 stage=TURN reason=hold | error=0.000016 rad tol=0.010000 angle_ok=1 | measured_wz=-0.000711 limit=0.050000 angular_ok=1 | linear_speed=0.000000 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=0.020 stage_wall=0.020 s
+[INFO] [1791562843.089880170] [pid_maze_solver]: P02 MOVE
+[INFO] [1791562843.110784339] [pid_maze_solver]: P02 MOVE distance=0.350 yaw_error=0.000 cmd=(0.018,-0.006,0.001)
+[INFO] [1791562843.269840660] [pid_maze_solver]: SIDE_CENTER P02 left=0.258 right=0.283 target_offset=-0.004 m
+[INFO] [1791562844.110757241] [pid_maze_solver]: P02 MOVE distance=0.213 yaw_error=-0.000 cmd=(0.175,-0.010,-0.000)
+[INFO] [1791562844.269864919] [pid_maze_solver]: SIDE_CENTER P02 left=0.265 right=0.275 target_offset=-0.016 m
+[INFO] [1791562845.110809741] [pid_maze_solver]: P02 MOVE distance=0.071 yaw_error=-0.000 cmd=(0.106,-0.002,0.000)
+[INFO] [1791562846.289921367] [pid_maze_solver]: Reached P02: distance=0.012437 heading_error=-0.000796
+[INFO] [1791562846.290002858] [pid_maze_solver]: Target P03: x=0.498338 y=-0.149011 yaw=-0.786439; TURN then MOVE
+[INFO] [1791562846.309870137] [pid_maze_solver]: TURN_SETTLING P03 stage=TURN reason=angle | error=-0.786194 rad tol=0.010000 angle_ok=0 | measured_wz=0.000227 limit=0.050000 angular_ok=1 | linear_speed=0.000009 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=0.020 stage_wall=0.020 s
+[INFO] [1791562846.310744659] [pid_maze_solver]: P03 TURN distance=0.209 yaw_error=-0.786 cmd=(0.000,0.000,-0.012)
+[INFO] [1791562846.829877796] [pid_maze_solver]: TURN_SETTLING P03 stage=TURN reason=angle | error=-0.737493 rad tol=0.010000 angle_ok=0 | measured_wz=-0.253235 limit=0.050000 angular_ok=0 | linear_speed=0.000009 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=0.540 stage_wall=0.540 s
+[INFO] [1791562847.310829705] [pid_maze_solver]: P03 TURN distance=0.208 yaw_error=-0.515 cmd=(0.000,0.000,-0.600)
+[INFO] [1791562847.329893538] [pid_maze_solver]: TURN_SETTLING P03 stage=TURN reason=angle | error=-0.515355 rad tol=0.010000 angle_ok=0 | measured_wz=-0.566819 limit=0.050000 angular_ok=0 | linear_speed=0.000009 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=1.040 stage_wall=1.040 s
+[INFO] [1791562847.849895703] [pid_maze_solver]: TURN_SETTLING P03 stage=TURN reason=angle | error=-0.201895 rad tol=0.010000 angle_ok=0 | measured_wz=-0.473894 limit=0.050000 angular_ok=0 | linear_speed=0.000009 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=1.560 stage_wall=1.560 s
+[INFO] [1791562848.310678600] [pid_maze_solver]: P03 TURN distance=0.208 yaw_error=-0.046 cmd=(0.000,0.000,-0.076)
+[INFO] [1791562848.349905772] [pid_maze_solver]: TURN_SETTLING P03 stage=TURN reason=angle | error=-0.039862 rad tol=0.010000 angle_ok=0 | measured_wz=-0.135121 limit=0.050000 angular_ok=0 | linear_speed=0.000008 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=2.060 stage_wall=2.060 s
+[INFO] [1791562848.849918728] [pid_maze_solver]: TURN_SETTLING P03 stage=TURN reason=angle | error=-0.015409 rad tol=0.010000 angle_ok=0 | measured_wz=-0.027889 limit=0.050000 angular_ok=1 | linear_speed=0.000008 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=2.560 stage_wall=2.560 s
+[INFO] [1791562849.289979520] [pid_maze_solver]: P03 MOVE
+[INFO] [1791562849.310874251] [pid_maze_solver]: P03 MOVE distance=0.208 yaw_error=-0.007 cmd=(0.017,-0.005,-0.012)
+[INFO] [1791562850.310873042] [pid_maze_solver]: P03 MOVE distance=0.110 yaw_error=-0.002 cmd=(0.119,0.015,-0.003)
+[INFO] [1791562851.310883167] [pid_maze_solver]: P03 MOVE distance=0.021 yaw_error=-0.001 cmd=(0.030,0.006,-0.002)
+[INFO] [1791562851.790020158] [pid_maze_solver]: Reached P03: distance=0.012561 heading_error=-0.000897
+[INFO] [1791562851.790093547] [pid_maze_solver]: Target P04: x=0.527140 y=-1.299042 yaw=-1.571837; TURN then MOVE
+[INFO] [1791562851.809969533] [pid_maze_solver]: TURN_SETTLING P04 stage=TURN reason=angle | error=-0.786295 rad tol=0.010000 angle_ok=0 | measured_wz=-0.000843 limit=0.050000 angular_ok=1 | linear_speed=0.000012 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=0.020 stage_wall=0.020 s
+[INFO] [1791562852.309978771] [pid_maze_solver]: TURN_SETTLING P04 stage=TURN reason=angle | error=-0.733609 rad tol=0.010000 angle_ok=0 | measured_wz=-0.257129 limit=0.050000 angular_ok=0 | linear_speed=0.000012 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=0.520 stage_wall=0.520 s
+[INFO] [1791562852.310834822] [pid_maze_solver]: P04 TURN distance=1.157 yaw_error=-0.734 cmd=(0.000,0.000,-0.312)
+[INFO] [1791562852.809990004] [pid_maze_solver]: TURN_SETTLING P04 stage=TURN reason=angle | error=-0.527467 rad tol=0.010000 angle_ok=0 | measured_wz=-0.567731 limit=0.050000 angular_ok=0 | linear_speed=0.000012 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=1.020 stage_wall=1.020 s
+[INFO] [1791562853.310813001] [pid_maze_solver]: P04 TURN distance=1.157 yaw_error=-0.202 cmd=(0.000,0.000,-0.363)
+[INFO] [1791562853.329999202] [pid_maze_solver]: TURN_SETTLING P04 stage=TURN reason=angle | error=-0.201520 rad tol=0.010000 angle_ok=0 | measured_wz=-0.450886 limit=0.050000 angular_ok=0 | linear_speed=0.000012 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=1.540 stage_wall=1.540 s
+[INFO] [1791562853.850008597] [pid_maze_solver]: TURN_SETTLING P04 stage=TURN reason=angle | error=-0.044554 rad tol=0.010000 angle_ok=0 | measured_wz=-0.134270 limit=0.050000 angular_ok=0 | linear_speed=0.000011 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=2.060 stage_wall=2.060 s
+[INFO] [1791562854.310783559] [pid_maze_solver]: P04 TURN distance=1.157 yaw_error=-0.017 cmd=(0.000,0.000,-0.025)
+[INFO] [1791562854.370023684] [pid_maze_solver]: TURN_SETTLING P04 stage=TURN reason=angle | error=-0.015980 rad tol=0.010000 angle_ok=0 | measured_wz=-0.035282 limit=0.050000 angular_ok=1 | linear_speed=0.000011 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=2.580 stage_wall=2.580 s
+[INFO] [1791562854.790075126] [pid_maze_solver]: P04 MOVE
+[INFO] [1791562855.311043635] [pid_maze_solver]: P04 MOVE distance=1.123 yaw_error=-0.004 cmd=(0.207,0.028,-0.006)
+[INFO] [1791562856.170087259] [pid_maze_solver]: SIDE_CENTER P04 left=0.259 right=0.242 target_offset=0.004 m
+[INFO] [1791562856.310999349] [pid_maze_solver]: P04 MOVE distance=0.889 yaw_error=-0.001 cmd=(0.240,0.009,-0.002)
+[INFO] [1791562857.170103934] [pid_maze_solver]: SIDE_CENTER P04 left=0.253 right=0.248 target_offset=0.005 m
+[INFO] [1791562857.311030779] [pid_maze_solver]: P04 MOVE distance=0.649 yaw_error=-0.000 cmd=(0.240,0.002,0.001)
+[INFO] [1791562858.170116804] [pid_maze_solver]: SIDE_CENTER P04 left=0.252 right=0.249 target_offset=0.005 m
+[INFO] [1791562858.311042393] [pid_maze_solver]: P04 MOVE distance=0.408 yaw_error=0.000 cmd=(0.240,0.001,0.001)
+[INFO] [1791562859.311033060] [pid_maze_solver]: P04 MOVE distance=0.187 yaw_error=0.000 cmd=(0.160,0.001,0.002)
+[INFO] [1791562860.311084822] [pid_maze_solver]: P04 MOVE distance=0.055 yaw_error=-0.000 cmd=(0.083,0.001,-0.001)
+[INFO] [1791562861.350197925] [pid_maze_solver]: Reached P04: distance=0.012080 heading_error=-0.000345
+[INFO] [1791562861.350274483] [pid_maze_solver]: Target P05: x=0.987128 y=-1.311521 yaw=-0.001041; TURN then MOVE
+[INFO] [1791562861.370154273] [pid_maze_solver]: TURN_SETTLING P05 stage=TURN reason=angle | error=1.570451 rad tol=0.010000 angle_ok=0 | measured_wz=-0.000735 limit=0.050000 angular_ok=1 | linear_speed=0.000035 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=0.020 stage_wall=0.020 s
+[INFO] [1791562861.371019894] [pid_maze_solver]: P05 TURN distance=0.456 yaw_error=1.570 cmd=(0.000,0.000,0.012)
+[INFO] [1791562861.870171125] [pid_maze_solver]: TURN_SETTLING P05 stage=TURN reason=angle | error=1.525627 rad tol=0.010000 angle_ok=0 | measured_wz=0.231556 limit=0.050000 angular_ok=0 | linear_speed=0.000035 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=0.520 stage_wall=0.520 s
+[INFO] [1791562862.371092819] [pid_maze_solver]: P05 TURN distance=0.455 yaw_error=1.308 cmd=(0.000,0.000,0.600)
+[INFO] [1791562862.390160195] [pid_maze_solver]: TURN_SETTLING P05 stage=TURN reason=angle | error=1.283270 rad tol=0.010000 angle_ok=0 | measured_wz=0.571612 limit=0.050000 angular_ok=0 | linear_speed=0.000033 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=1.040 stage_wall=1.040 s
+[INFO] [1791562862.890174117] [pid_maze_solver]: TURN_SETTLING P05 stage=TURN reason=angle | error=0.949438 rad tol=0.010000 angle_ok=0 | measured_wz=0.646149 limit=0.050000 angular_ok=0 | linear_speed=0.000032 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=1.540 stage_wall=1.540 s
+[INFO] [1791562863.370989150] [pid_maze_solver]: P05 TURN distance=0.455 yaw_error=0.652 cmd=(0.000,0.000,0.600)
+[INFO] [1791562863.390185353] [pid_maze_solver]: TURN_SETTLING P05 stage=TURN reason=angle | error=0.625131 rad tol=0.010000 angle_ok=0 | measured_wz=0.644579 limit=0.050000 angular_ok=0 | linear_speed=0.000032 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=2.040 stage_wall=2.040 s
+[INFO] [1791562863.890199131] [pid_maze_solver]: TURN_SETTLING P05 stage=TURN reason=angle | error=0.275190 rad tol=0.010000 angle_ok=0 | measured_wz=0.567490 limit=0.050000 angular_ok=0 | linear_speed=0.000031 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=2.540 stage_wall=2.540 s
+[INFO] [1791562864.371018482] [pid_maze_solver]: P05 TURN distance=0.455 yaw_error=0.096 cmd=(0.000,0.000,0.180)
+[INFO] [1791562864.390213344] [pid_maze_solver]: TURN_SETTLING P05 stage=TURN reason=angle | error=0.085480 rad tol=0.010000 angle_ok=0 | measured_wz=0.243648 limit=0.050000 angular_ok=0 | linear_speed=0.000030 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=3.040 stage_wall=3.040 s
+[INFO] [1791562864.890225715] [pid_maze_solver]: TURN_SETTLING P05 stage=TURN reason=angle | error=0.028538 rad tol=0.010000 angle_ok=0 | measured_wz=0.050121 limit=0.050000 angular_ok=0 | linear_speed=0.000029 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=3.540 stage_wall=3.540 s
+[INFO] [1791562865.370990358] [pid_maze_solver]: P05 TURN distance=0.455 yaw_error=0.013 cmd=(0.000,0.000,0.018)
+[INFO] [1791562865.390275585] [pid_maze_solver]: TURN_SETTLING P05 stage=TURN reason=angle | error=0.011762 rad tol=0.010000 angle_ok=0 | measured_wz=0.026910 limit=0.050000 angular_ok=1 | linear_speed=0.000028 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=4.040 stage_wall=4.040 s
+[INFO] [1791562865.690262915] [pid_maze_solver]: P05 MOVE
+[INFO] [1791562866.371225122] [pid_maze_solver]: P05 MOVE distance=0.405 yaw_error=0.004 cmd=(0.115,-0.017,0.004)
+[INFO] [1791562867.371315123] [pid_maze_solver]: P05 MOVE distance=0.293 yaw_error=0.001 cmd=(0.112,-0.006,0.003)
+[INFO] [1791562868.371449645] [pid_maze_solver]: P05 MOVE distance=0.178 yaw_error=0.000 cmd=(0.120,-0.001,0.002)
+[INFO] [1791562869.391236662] [pid_maze_solver]: P05 MOVE distance=0.054 yaw_error=0.000 cmd=(0.084,0.006,0.001)
+[INFO] [1791562870.390374759] [pid_maze_solver]: Reached P05: distance=0.012398 heading_error=0.000012
+[INFO] [1791562870.390461319] [pid_maze_solver]: Target P06: x=1.017648 y=-0.811552 yaw=1.569755; TURN then MOVE
+[INFO] [1791562870.410320338] [pid_maze_solver]: TURN_SETTLING P06 stage=TURN reason=angle | error=1.570808 rad tol=0.010000 angle_ok=0 | measured_wz=0.000141 limit=0.050000 angular_ok=1 | linear_speed=0.000032 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=0.020 stage_wall=0.020 s
+[INFO] [1791562870.411182984] [pid_maze_solver]: P06 TURN distance=0.504 yaw_error=1.571 cmd=(0.000,0.000,0.013)
+[INFO] [1791562870.930336566] [pid_maze_solver]: TURN_SETTLING P06 stage=TURN reason=angle | error=1.517201 rad tol=0.010000 angle_ok=0 | measured_wz=0.254452 limit=0.050000 angular_ok=0 | linear_speed=0.000032 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=0.539 stage_wall=0.540 s
+[INFO] [1791562871.411131746] [pid_maze_solver]: P06 TURN distance=0.503 yaw_error=1.307 cmd=(0.000,0.000,0.600)
+[INFO] [1791562871.450369822] [pid_maze_solver]: TURN_SETTLING P06 stage=TURN reason=angle | error=1.280509 rad tol=0.010000 angle_ok=0 | measured_wz=0.608466 limit=0.050000 angular_ok=0 | linear_speed=0.000031 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=1.060 stage_wall=1.060 s
+[INFO] [1791562871.970373720] [pid_maze_solver]: TURN_SETTLING P06 stage=TURN reason=angle | error=0.928379 rad tol=0.010000 angle_ok=0 | measured_wz=0.643091 limit=0.050000 angular_ok=0 | linear_speed=0.000030 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=1.580 stage_wall=1.580 s
+[INFO] [1791562872.411201179] [pid_maze_solver]: P06 TURN distance=0.503 yaw_error=0.629 cmd=(0.000,0.000,0.600)
+[INFO] [1791562872.490397066] [pid_maze_solver]: TURN_SETTLING P06 stage=TURN reason=angle | error=0.542198 rad tol=0.010000 angle_ok=0 | measured_wz=0.642913 limit=0.050000 angular_ok=0 | linear_speed=0.000029 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=2.099 stage_wall=2.100 s
+[INFO] [1791562873.010362252] [pid_maze_solver]: TURN_SETTLING P06 stage=TURN reason=angle | error=0.231092 rad tol=0.010000 angle_ok=0 | measured_wz=0.503204 limit=0.050000 angular_ok=0 | linear_speed=0.000028 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=2.620 stage_wall=2.620 s
+[INFO] [1791562873.411168888] [pid_maze_solver]: P06 TURN distance=0.503 yaw_error=0.074 cmd=(0.000,0.000,0.155)
+[INFO] [1791562873.530372973] [pid_maze_solver]: TURN_SETTLING P06 stage=TURN reason=angle | error=0.048284 rad tol=0.010000 angle_ok=0 | measured_wz=0.181000 limit=0.050000 angular_ok=0 | linear_speed=0.000027 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=3.140 stage_wall=3.140 s
+[INFO] [1791562874.030395061] [pid_maze_solver]: TURN_SETTLING P06 stage=TURN reason=angle | error=0.016074 rad tol=0.010000 angle_ok=0 | measured_wz=0.029045 limit=0.050000 angular_ok=1 | linear_speed=0.000027 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=3.640 stage_wall=3.640 s
+[INFO] [1791562874.490457542] [pid_maze_solver]: P06 MOVE
+[INFO] [1791562874.511367680] [pid_maze_solver]: P06 MOVE distance=0.503 yaw_error=0.007 cmd=(-0.003,-0.018,0.012)
+[INFO] [1791562875.511392594] [pid_maze_solver]: P06 MOVE distance=0.421 yaw_error=0.002 cmd=(0.111,-0.017,0.003)
+[INFO] [1791562876.531410728] [pid_maze_solver]: P06 MOVE distance=0.240 yaw_error=0.000 cmd=(0.185,-0.002,0.002)
+[INFO] [1791562877.531607168] [pid_maze_solver]: P06 MOVE distance=0.090 yaw_error=-0.001 cmd=(0.115,0.002,-0.001)
+[INFO] [1791562878.790513160] [pid_maze_solver]: Reached P06: distance=0.012634 heading_error=-0.000159
+[INFO] [1791562878.790592044] [pid_maze_solver]: Target P07: x=1.387648 y=-0.811938 yaw=1.569755; MOVE with reused stop
+[INFO] [1791562878.790604212] [pid_maze_solver]: P07 MOVE (reused qualified stop; unchanged heading)
+[INFO] [1791562878.811609631] [pid_maze_solver]: P07 MOVE distance=0.368 yaw_error=-0.000 cmd=(-0.004,-0.021,-0.001)
+[INFO] [1791562879.811443765] [pid_maze_solver]: P07 MOVE distance=0.258 yaw_error=0.000 cmd=(0.001,-0.120,0.001)
+[INFO] [1791562880.811482147] [pid_maze_solver]: P07 MOVE distance=0.138 yaw_error=-0.000 cmd=(0.001,-0.120,0.001)
+[INFO] [1791562881.811458597] [pid_maze_solver]: P07 MOVE distance=0.031 yaw_error=-0.000 cmd=(0.006,-0.047,0.000)
+[INFO] [1791562882.490586774] [pid_maze_solver]: Reached P07: distance=0.012652 heading_error=-0.000221
+[INFO] [1791562882.490665965] [pid_maze_solver]: Target P08: x=1.388220 y=-0.261938 yaw=1.569755; MOVE with reused stop
+[INFO] [1791562882.490700174] [pid_maze_solver]: P08 MOVE (reused qualified stop; unchanged heading)
+[INFO] [1791562882.811495996] [pid_maze_solver]: P08 MOVE distance=0.544 yaw_error=-0.000 cmd=(0.115,-0.017,-0.000)
+[INFO] [1791562883.811478615] [pid_maze_solver]: P08 MOVE distance=0.435 yaw_error=-0.000 cmd=(0.111,-0.007,0.002)
+[INFO] [1791562884.811540767] [pid_maze_solver]: P08 MOVE distance=0.321 yaw_error=-0.001 cmd=(0.120,-0.001,-0.001)
+[INFO] [1791562885.811533624] [pid_maze_solver]: P08 MOVE distance=0.201 yaw_error=-0.000 cmd=(0.120,0.001,0.000)
+[INFO] [1791562886.831650083] [pid_maze_solver]: P08 MOVE distance=0.075 yaw_error=-0.000 cmd=(0.112,0.006,-0.003)
+[INFO] [1791562887.990687923] [pid_maze_solver]: Reached P08: distance=0.012424 heading_error=0.000177
+[INFO] [1791562887.990763773] [pid_maze_solver]: Target P09: x=2.003220 y=-0.262578 yaw=1.569755; MOVE with reused stop
+[INFO] [1791562887.990796689] [pid_maze_solver]: P09 MOVE (reused qualified stop; unchanged heading)
+[INFO] [1791562888.011603938] [pid_maze_solver]: P09 MOVE distance=0.615 yaw_error=0.000 cmd=(0.002,-0.011,-0.001)
+[INFO] [1791562889.011645312] [pid_maze_solver]: P09 MOVE distance=0.483 yaw_error=-0.000 cmd=(0.001,-0.200,0.000)
+[INFO] [1791562890.011616429] [pid_maze_solver]: P09 MOVE distance=0.285 yaw_error=-0.000 cmd=(0.000,-0.200,0.001)
+[INFO] [1791562891.011660812] [pid_maze_solver]: P09 MOVE distance=0.114 yaw_error=0.000 cmd=(0.000,-0.120,0.002)
+[INFO] [1791562892.011663684] [pid_maze_solver]: P09 MOVE distance=0.022 yaw_error=0.000 cmd=(0.002,-0.033,0.001)
+[INFO] [1791562892.550789378] [pid_maze_solver]: Reached P09: distance=0.011842 heading_error=0.000112
+[INFO] [1791562892.550868709] [pid_maze_solver]: Target P10: x=1.944049 y=0.533484 yaw=1.569755; MOVE with reused stop
+[INFO] [1791562892.550886448] [pid_maze_solver]: P10 MOVE (reused qualified stop; unchanged heading)
+[WARN] [1791562892.971029019] [pid_maze_solver]: Blocked point=(0.199,0.203) horizon=0.48 measured=1
+[WARN] [1791562892.971160977] [pid_maze_solver]: OBSTACLE_HOLD P10
+[INFO] [1791562893.011704450] [pid_maze_solver]: P10 MOVE distance=0.772 yaw_error=-0.000 cmd=(0.016,0.016,-0.001)
+[WARN] [1791562893.071087147] [pid_maze_solver]: OBSTACLE_HOLD P10
+[INFO] [1791562894.011676429] [pid_maze_solver]: P10 MOVE distance=0.687 yaw_error=-0.001 cmd=(0.105,0.000,-0.002)
+[INFO] [1791562895.011747098] [pid_maze_solver]: P10 MOVE distance=0.582 yaw_error=-0.001 cmd=(0.105,-0.001,-0.001)
+[INFO] [1791562896.011715510] [pid_maze_solver]: P10 MOVE distance=0.477 yaw_error=-0.000 cmd=(0.105,-0.000,-0.001)
+[INFO] [1791562897.011755752] [pid_maze_solver]: P10 MOVE distance=0.367 yaw_error=0.000 cmd=(0.105,-0.000,0.001)
+[INFO] [1791562898.011796623] [pid_maze_solver]: P10 MOVE distance=0.249 yaw_error=-0.000 cmd=(0.120,-0.000,0.001)
+[INFO] [1791562899.011847996] [pid_maze_solver]: P10 MOVE distance=0.129 yaw_error=-0.000 cmd=(0.120,0.002,-0.001)
+[INFO] [1791562900.011807511] [pid_maze_solver]: P10 MOVE distance=0.027 yaw_error=-0.000 cmd=(0.041,0.009,0.001)
+[INFO] [1791562900.650948719] [pid_maze_solver]: Reached P10: distance=0.012537 heading_error=-0.000597
+[INFO] [1791562900.651073458] [pid_maze_solver]: Target P11: x=1.503049 y=0.533943 yaw=3.140552; TURN then MOVE
+[INFO] [1791562900.670884208] [pid_maze_solver]: TURN_SETTLING P11 stage=TURN reason=angle | error=1.570199 rad tol=0.010000 angle_ok=0 | measured_wz=-0.005559 limit=0.050000 angular_ok=1 | linear_speed=0.000036 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=0.019 stage_wall=0.020 s
+[INFO] [1791562901.011700749] [pid_maze_solver]: P11 TURN distance=0.444 yaw_error=1.554 cmd=(0.000,0.000,0.216)
+[INFO] [1791562901.190884533] [pid_maze_solver]: TURN_SETTLING P11 stage=TURN reason=angle | error=1.513307 rad tol=0.010000 angle_ok=0 | measured_wz=0.257418 limit=0.050000 angular_ok=0 | linear_speed=0.000036 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=0.539 stage_wall=0.540 s
+[INFO] [1791562901.690898766] [pid_maze_solver]: TURN_SETTLING P11 stage=TURN reason=angle | error=1.287777 rad tol=0.010000 angle_ok=0 | measured_wz=0.601110 limit=0.050000 angular_ok=0 | linear_speed=0.000035 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=1.039 stage_wall=1.040 s
+[INFO] [1791562902.011725163] [pid_maze_solver]: P11 TURN distance=0.444 yaw_error=1.100 cmd=(0.000,0.000,0.600)
+[INFO] [1791562902.190911816] [pid_maze_solver]: TURN_SETTLING P11 stage=TURN reason=angle | error=0.964110 rad tol=0.010000 angle_ok=0 | measured_wz=0.630147 limit=0.050000 angular_ok=0 | linear_speed=0.000034 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=1.539 stage_wall=1.540 s
+[INFO] [1791562902.690922327] [pid_maze_solver]: TURN_SETTLING P11 stage=TURN reason=angle | error=0.620622 rad tol=0.010000 angle_ok=0 | measured_wz=0.630610 limit=0.050000 angular_ok=0 | linear_speed=0.000033 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=2.039 stage_wall=2.040 s
+[INFO] [1791562903.011739250] [pid_maze_solver]: P11 TURN distance=0.444 yaw_error=0.437 cmd=(0.000,0.000,0.576)
+[INFO] [1791562903.210940466] [pid_maze_solver]: TURN_SETTLING P11 stage=TURN reason=angle | error=0.315543 rad tol=0.010000 angle_ok=0 | measured_wz=0.558333 limit=0.050000 angular_ok=0 | linear_speed=0.000032 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=2.559 stage_wall=2.560 s
+[INFO] [1791562903.730936523] [pid_maze_solver]: TURN_SETTLING P11 stage=TURN reason=angle | error=0.103493 rad tol=0.010000 angle_ok=0 | measured_wz=0.247630 limit=0.050000 angular_ok=0 | linear_speed=0.000031 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=3.079 stage_wall=3.080 s
+[INFO] [1791562904.011748581] [pid_maze_solver]: P11 TURN distance=0.444 yaw_error=0.060 cmd=(0.000,0.000,0.081)
+[INFO] [1791562904.230948399] [pid_maze_solver]: TURN_SETTLING P11 stage=TURN reason=angle | error=0.043553 rad tol=0.010000 angle_ok=0 | measured_wz=0.074027 limit=0.050000 angular_ok=0 | linear_speed=0.000030 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=3.579 stage_wall=3.580 s
+[INFO] [1791562904.730965010] [pid_maze_solver]: TURN_SETTLING P11 stage=TURN reason=angle | error=0.018202 rad tol=0.010000 angle_ok=0 | measured_wz=0.034943 limit=0.050000 angular_ok=1 | linear_speed=0.000029 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=4.079 stage_wall=4.080 s
+[INFO] [1791562905.011742890] [pid_maze_solver]: P11 TURN distance=0.444 yaw_error=0.011 cmd=(0.000,0.000,0.018)
+[INFO] [1791562905.231057402] [pid_maze_solver]: TURN_SETTLING P11 stage=TURN reason=hold | error=0.007414 rad tol=0.010000 angle_ok=1 | measured_wz=0.005841 limit=0.050000 angular_ok=1 | linear_speed=0.000029 limit=0.010000 linear_ok=1 | hold_ros=0.181/0.200 s | stage_ros=4.580 stage_wall=4.580 s
+[INFO] [1791562905.251006236] [pid_maze_solver]: P11 MOVE
+[INFO] [1791562906.031922013] [pid_maze_solver]: P11 MOVE distance=0.362 yaw_error=0.003 cmd=(0.239,-0.004,0.006)
+[INFO] [1791562907.031943107] [pid_maze_solver]: P11 MOVE distance=0.156 yaw_error=0.001 cmd=(0.141,-0.001,0.002)
+[INFO] [1791562908.032027370] [pid_maze_solver]: P11 MOVE distance=0.038 yaw_error=0.000 cmd=(0.057,-0.001,0.003)
+[INFO] [1791562908.791091530] [pid_maze_solver]: Reached P11: distance=0.012714 heading_error=0.000622
+[INFO] [1791562908.791164531] [pid_maze_solver]: Target P12: x=1.502783 y=0.277943 yaw=3.140552; MOVE with reused stop
+[INFO] [1791562908.791183779] [pid_maze_solver]: P12 MOVE (reused qualified stop; unchanged heading)
+[INFO] [1791562909.031960458] [pid_maze_solver]: P12 MOVE distance=0.253 yaw_error=0.001 cmd=(0.010,0.100,0.002)
+[INFO] [1791562910.032014991] [pid_maze_solver]: P12 MOVE distance=0.114 yaw_error=-0.000 cmd=(0.002,0.120,0.000)
+[INFO] [1791562911.032023442] [pid_maze_solver]: P12 MOVE distance=0.021 yaw_error=-0.000 cmd=(0.003,0.032,0.001)
+[INFO] [1791562911.491137160] [pid_maze_solver]: Reached P12: distance=0.013013 heading_error=-0.000089
+[INFO] [1791562911.491221441] [pid_maze_solver]: Target P13: x=0.974783 y=0.278493 yaw=3.140552; MOVE with reused stop
+[INFO] [1791562911.491239827] [pid_maze_solver]: P13 MOVE (reused qualified stop; unchanged heading)
+[INFO] [1791562912.032067538] [pid_maze_solver]: P13 MOVE distance=0.497 yaw_error=-0.000 cmd=(0.116,0.015,-0.001)
+[INFO] [1791562913.032084397] [pid_maze_solver]: P13 MOVE distance=0.380 yaw_error=-0.001 cmd=(0.227,0.005,-0.001)
+[INFO] [1791562914.032075137] [pid_maze_solver]: P13 MOVE distance=0.173 yaw_error=-0.000 cmd=(0.152,-0.001,0.000)
+[INFO] [1791562915.032119768] [pid_maze_solver]: P13 MOVE distance=0.047 yaw_error=-0.000 cmd=(0.070,-0.005,0.001)
+[INFO] [1791562915.951232906] [pid_maze_solver]: Reached P13: distance=0.011976 heading_error=0.000113
+[INFO] [1791562915.951323023] [pid_maze_solver]: Target P14: x=0.707775 y=0.546057 yaw=2.355153; TURN then MOVE
+[INFO] [1791562915.971241009] [pid_maze_solver]: TURN_SETTLING P14 stage=TURN reason=angle | error=-0.785285 rad tol=0.010000 angle_ok=0 | measured_wz=-0.005185 limit=0.050000 angular_ok=1 | linear_speed=0.000035 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=0.019 stage_wall=0.020 s
+[INFO] [1791562916.031957329] [pid_maze_solver]: P14 TURN distance=0.387 yaw_error=-0.785 cmd=(0.000,0.000,-0.048)
+[INFO] [1791562916.471261732] [pid_maze_solver]: TURN_SETTLING P14 stage=TURN reason=angle | error=-0.742656 rad tol=0.010000 angle_ok=0 | measured_wz=-0.223692 limit=0.050000 angular_ok=0 | linear_speed=0.000035 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=0.520 stage_wall=0.520 s
+[INFO] [1791562916.991180115] [pid_maze_solver]: TURN_SETTLING P14 stage=TURN reason=angle | error=-0.505943 rad tol=0.010000 angle_ok=0 | measured_wz=-0.586801 limit=0.050000 angular_ok=0 | linear_speed=0.000034 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=1.039 stage_wall=1.040 s
+[INFO] [1791562917.033046884] [pid_maze_solver]: P14 TURN distance=0.387 yaw_error=-0.506 cmd=(0.000,0.000,-0.600)
+[INFO] [1791562917.491286415] [pid_maze_solver]: TURN_SETTLING P14 stage=TURN reason=angle | error=-0.211224 rad tol=0.010000 angle_ok=0 | measured_wz=-0.428738 limit=0.050000 angular_ok=0 | linear_speed=0.000033 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=1.540 stage_wall=1.540 s
+[INFO] [1791562918.011198627] [pid_maze_solver]: TURN_SETTLING P14 stage=TURN reason=angle | error=-0.073483 rad tol=0.010000 angle_ok=0 | measured_wz=-0.130347 limit=0.050000 angular_ok=0 | linear_speed=0.000032 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=2.059 stage_wall=2.060 s
+[INFO] [1791562918.052023166] [pid_maze_solver]: P14 TURN distance=0.387 yaw_error=-0.069 cmd=(0.000,0.000,-0.091)
+[INFO] [1791562918.511218431] [pid_maze_solver]: TURN_SETTLING P14 stage=TURN reason=angle | error=-0.030750 rad tol=0.010000 angle_ok=0 | measured_wz=-0.056018 limit=0.050000 angular_ok=0 | linear_speed=0.000031 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=2.560 stage_wall=2.560 s
+[INFO] [1791562919.011246779] [pid_maze_solver]: TURN_SETTLING P14 stage=TURN reason=angle | error=-0.012666 rad tol=0.010000 angle_ok=0 | measured_wz=-0.024485 limit=0.050000 angular_ok=1 | linear_speed=0.000030 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=3.060 stage_wall=3.060 s
+[INFO] [1791562919.051976419] [pid_maze_solver]: P14 TURN distance=0.387 yaw_error=-0.012 cmd=(0.000,0.000,-0.021)
+[INFO] [1791562919.351341445] [pid_maze_solver]: P14 MOVE
+[INFO] [1791562920.052178220] [pid_maze_solver]: P14 MOVE distance=0.329 yaw_error=-0.004 cmd=(0.120,-0.000,-0.005)
+[INFO] [1791562921.052192711] [pid_maze_solver]: P14 MOVE distance=0.209 yaw_error=-0.001 cmd=(0.120,-0.000,-0.003)
+[INFO] [1791562922.052326775] [pid_maze_solver]: P14 MOVE distance=0.089 yaw_error=-0.000 cmd=(0.120,0.009,0.000)
+[INFO] [1791562923.052249823] [pid_maze_solver]: P14 MOVE distance=0.015 yaw_error=-0.000 cmd=(0.023,0.002,-0.001)
+[INFO] [1791562923.391364763] [pid_maze_solver]: Reached P14: distance=0.011829 heading_error=-0.000278
+[INFO] [1791562923.391444845] [pid_maze_solver]: Target P15: x=0.094329 y=0.596194 yaw=3.140552; TURN then MOVE
+[INFO] [1791562923.411305494] [pid_maze_solver]: TURN_SETTLING P15 stage=TURN reason=angle | error=0.785120 rad tol=0.010000 angle_ok=0 | measured_wz=0.001740 limit=0.050000 angular_ok=1 | linear_speed=0.000032 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=0.020 stage_wall=0.020 s
+[INFO] [1791562923.931314190] [pid_maze_solver]: TURN_SETTLING P15 stage=TURN reason=angle | error=0.731438 rad tol=0.010000 angle_ok=0 | measured_wz=0.255970 limit=0.050000 angular_ok=0 | linear_speed=0.000032 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=0.540 stage_wall=0.540 s
+[INFO] [1791562924.072138339] [pid_maze_solver]: P15 TURN distance=0.625 yaw_error=0.695 cmd=(0.000,0.000,0.408)
+[INFO] [1791562924.431327118] [pid_maze_solver]: TURN_SETTLING P15 stage=TURN reason=angle | error=0.524979 rad tol=0.010000 angle_ok=0 | measured_wz=0.571635 limit=0.050000 angular_ok=0 | linear_speed=0.000031 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=1.040 stage_wall=1.040 s
+[INFO] [1791562924.951330460] [pid_maze_solver]: TURN_SETTLING P15 stage=TURN reason=angle | error=0.183270 rad tol=0.010000 angle_ok=0 | measured_wz=0.439281 limit=0.050000 angular_ok=0 | linear_speed=0.000030 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=1.560 stage_wall=1.560 s
+[INFO] [1791562925.072214043] [pid_maze_solver]: P15 TURN distance=0.625 yaw_error=0.149 cmd=(0.000,0.000,0.263)
+[INFO] [1791562925.451519335] [pid_maze_solver]: TURN_SETTLING P15 stage=TURN reason=angle | error=0.042399 rad tol=0.010000 angle_ok=0 | measured_wz=0.128539 limit=0.050000 angular_ok=0 | linear_speed=0.000029 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=2.060 stage_wall=2.060 s
+[INFO] [1791562925.971354037] [pid_maze_solver]: TURN_SETTLING P15 stage=TURN reason=angle | error=0.014396 rad tol=0.010000 angle_ok=0 | measured_wz=0.031490 limit=0.050000 angular_ok=1 | linear_speed=0.000029 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=2.580 stage_wall=2.580 s
+[INFO] [1791562926.092131896] [pid_maze_solver]: P15 TURN distance=0.625 yaw_error=0.010 cmd=(0.000,0.000,0.018)
+[INFO] [1791562926.351710515] [pid_maze_solver]: P15 MOVE
+[INFO] [1791562927.092331870] [pid_maze_solver]: P15 MOVE distance=0.534 yaw_error=0.002 cmd=(0.238,-0.030,0.004)
+[INFO] [1791562928.092360301] [pid_maze_solver]: P15 MOVE distance=0.294 yaw_error=0.000 cmd=(0.224,-0.004,0.001)
+[INFO] [1791562928.171412958] [pid_maze_solver]: SIDE_CENTER P15 left=0.313 right=0.228 target_offset=0.004 m
+[INFO] [1791562929.092345508] [pid_maze_solver]: P15 MOVE distance=0.119 yaw_error=-0.000 cmd=(0.116,0.030,0.000)
+[INFO] [1791562929.171435472] [pid_maze_solver]: SIDE_CENTER P15 left=0.296 right=0.246 target_offset=0.044 m
+[INFO] [1791562930.092377684] [pid_maze_solver]: P15 MOVE distance=0.025 yaw_error=-0.000 cmd=(0.036,0.008,-0.000)
+[INFO] [1791562930.171457154] [pid_maze_solver]: SIDE_CENTER P15 left=0.276 right=0.265 target_offset=0.048 m
+[INFO] [1791562930.751488423] [pid_maze_solver]: Reached P15: distance=0.011722 heading_error=-0.000463
+[INFO] [1791562930.751564542] [pid_maze_solver]: Final clockwise turn: start=3.141014 target=-0.000578 delta=-3.141593 rad
+[INFO] [1791562930.771434739] [pid_maze_solver]: TURN_SETTLING P15 stage=FINAL_TURN reason=angle | error=-3.141593 rad tol=0.010000 angle_ok=0 | measured_wz=0.001213 limit=0.050000 angular_ok=1 | linear_speed=0.000037 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=0.020 stage_wall=0.020 s
+[INFO] [1791562931.112206396] [pid_maze_solver]: P15 FINAL_TURN distance=0.012 yaw_error=-3.122 cmd=(0.000,0.000,-0.216)
+[INFO] [1791562931.271449050] [pid_maze_solver]: TURN_SETTLING P15 stage=FINAL_TURN reason=angle | error=-3.098389 rad tol=0.010000 angle_ok=0 | measured_wz=-0.229773 limit=0.050000 angular_ok=0 | linear_speed=0.000036 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=0.520 stage_wall=0.520 s
+[INFO] [1791562931.791466476] [pid_maze_solver]: TURN_SETTLING P15 stage=FINAL_TURN reason=angle | error=-2.857811 rad tol=0.010000 angle_ok=0 | measured_wz=-0.593600 limit=0.050000 angular_ok=0 | linear_speed=0.000035 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=1.040 stage_wall=1.040 s
+[INFO] [1791562932.112306718] [pid_maze_solver]: P15 FINAL_TURN distance=0.012 yaw_error=-2.644 cmd=(0.000,0.000,-0.600)
+[INFO] [1791562932.291484318] [pid_maze_solver]: TURN_SETTLING P15 stage=FINAL_TURN reason=angle | error=-2.501796 rad tol=0.010000 angle_ok=0 | measured_wz=-0.645938 limit=0.050000 angular_ok=0 | linear_speed=0.000034 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=1.539 stage_wall=1.540 s
+[INFO] [1791562932.811481665] [pid_maze_solver]: TURN_SETTLING P15 stage=FINAL_TURN reason=angle | error=-2.170708 rad tol=0.010000 angle_ok=0 | measured_wz=-0.646266 limit=0.050000 angular_ok=0 | linear_speed=0.000033 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=2.060 stage_wall=2.060 s
+[INFO] [1791562933.112322921] [pid_maze_solver]: P15 FINAL_TURN distance=0.012 yaw_error=-1.960 cmd=(0.000,0.000,-0.600)
+[INFO] [1791562933.331485738] [pid_maze_solver]: TURN_SETTLING P15 stage=FINAL_TURN reason=angle | error=-1.826660 rad tol=0.010000 angle_ok=0 | measured_wz=-0.644640 limit=0.050000 angular_ok=0 | linear_speed=0.000032 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=2.580 stage_wall=2.580 s
+[INFO] [1791562933.831495677] [pid_maze_solver]: TURN_SETTLING P15 stage=FINAL_TURN reason=angle | error=-1.497322 rad tol=0.010000 angle_ok=0 | measured_wz=-0.646640 limit=0.050000 angular_ok=0 | linear_speed=0.000031 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=3.080 stage_wall=3.080 s
+[INFO] [1791562934.112296027] [pid_maze_solver]: P15 FINAL_TURN distance=0.012 yaw_error=-1.281 cmd=(0.000,0.000,-0.600)
+[INFO] [1791562934.331515761] [pid_maze_solver]: TURN_SETTLING P15 stage=FINAL_TURN reason=angle | error=-1.147973 rad tol=0.010000 angle_ok=0 | measured_wz=-0.647154 limit=0.050000 angular_ok=0 | linear_speed=0.000030 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=3.580 stage_wall=3.580 s
+[INFO] [1791562934.851520437] [pid_maze_solver]: TURN_SETTLING P15 stage=FINAL_TURN reason=angle | error=-0.795435 rad tol=0.010000 angle_ok=0 | measured_wz=-0.643839 limit=0.050000 angular_ok=0 | linear_speed=0.000030 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=4.100 stage_wall=4.100 s
+[INFO] [1791562935.112297653] [pid_maze_solver]: P15 FINAL_TURN distance=0.012 yaw_error=-0.603 cmd=(0.000,0.000,-0.600)
+[INFO] [1791562935.351535835] [pid_maze_solver]: TURN_SETTLING P15 stage=FINAL_TURN reason=angle | error=-0.439917 rad tol=0.010000 angle_ok=0 | measured_wz=-0.646695 limit=0.050000 angular_ok=0 | linear_speed=0.000029 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=4.600 stage_wall=4.600 s
+[INFO] [1791562935.871530878] [pid_maze_solver]: TURN_SETTLING P15 stage=FINAL_TURN reason=angle | error=-0.167923 rad tol=0.010000 angle_ok=0 | measured_wz=-0.402810 limit=0.050000 angular_ok=0 | linear_speed=0.000028 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=5.120 stage_wall=5.120 s
+[INFO] [1791562936.112325418] [pid_maze_solver]: P15 FINAL_TURN distance=0.012 yaw_error=-0.079 cmd=(0.000,0.000,-0.132)
+[INFO] [1791562936.371551916] [pid_maze_solver]: TURN_SETTLING P15 stage=FINAL_TURN reason=angle | error=-0.044509 rad tol=0.010000 angle_ok=0 | measured_wz=-0.076219 limit=0.050000 angular_ok=0 | linear_speed=0.000027 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=5.620 stage_wall=5.620 s
+[INFO] [1791562936.891560956] [pid_maze_solver]: TURN_SETTLING P15 stage=FINAL_TURN reason=angle | error=-0.015975 rad tol=0.010000 angle_ok=0 | measured_wz=-0.035079 limit=0.050000 angular_ok=1 | linear_speed=0.000026 limit=0.010000 linear_ok=1 | hold_ros=0.000/0.200 s | stage_ros=6.140 stage_wall=6.140 s
+[INFO] [1791562937.112310677] [pid_maze_solver]: P15 FINAL_TURN distance=0.012 yaw_error=-0.011 cmd=(0.000,0.000,-0.018)
+[INFO] [1791562937.351610581] [pid_maze_solver]: Final clockwise turn completed: rotation=-3.133317 error=-0.008275 rad
+[INFO] [1791562937.351684256] [pid_maze_solver]: Route completed; stopped.

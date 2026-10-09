@@ -7,7 +7,7 @@ PID state, tolerances, watchdogs, commands or the 0.20 ROS-second hold.
 | Field | Meaning |
 | --- | --- |
 | reason=angle | Heading error has not entered 0.01 rad tolerance |
-| reason=angular_speed | Angle is acceptable; measured odom yaw rate exceeds 0.02 rad/s |
+| reason=angular_speed | Angle is acceptable; measured odom yaw rate exceeds turn_stop_yaw_rate (default 0.05 rad/s) |
 | reason=linear_speed | Angle/yaw rate acceptable; planar speed exceeds 0.01 m/s |
 | reason=hold | All instantaneous gates pass; continuous hold is not complete |
 | reason=ready | All gates and the hold pass at this sampled tick |
@@ -35,3 +35,13 @@ alone. See [timings](evidence/turn_diagnostics/summary.json),
 The submitted earlier cloud log completes the route and final half-turn, exit 0,
 but lacks measured speeds in the silent hold interval. New cloud diagnostics are
 needed to separate convergence, feedback-speed decay and simulation slowdown.
+
+## Configurable turn stop threshold
+
+The trial default is 0.05 rad/s for TURN and FINAL_TURN only. Startup and MOVE
+retain 0.02 rad/s. Heading tolerance remains 0.01 rad and the default motion-step
+hold remains 0.20 ROS seconds. Override with --ros-args -p turn_stop_yaw_rate:=0.02
+to compare the previous behavior. This tuning does not fix or prove estimator lag.
+
+
+Local trial: 14 translations plus final clockwise half-turn completed, exit 0; 94.481 steady seconds from P02 target. Final turn error -0.008275 rad. Cloud timing/accuracy remain pending. See [trial evidence](evidence/turn_stop_005/summary.json). The full trial used an initial build with startup also at 0.05; startup was subsequently restored to 0.02 and build/fixture checks rerun. Route logic was identical.

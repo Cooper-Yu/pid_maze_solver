@@ -40,6 +40,7 @@ public:
       positive("turn_kp", 1.8), nonnegative("turn_ki", 0.03), nonnegative("turn_kd", 0.35),
       positive("max_yaw_rate", 0.6), 0.6);
     stage_timeout_ = positive("stage_timeout", 60.0);
+    turn_stop_yaw_rate_ = positive("turn_stop_yaw_rate", .05);
     stop_hold_ = positive("stop_hold", steps_.empty() ? .4 : .20);
     last_index_ = declare_parameter<int>("last_point", static_cast<int>(route_.size()));
     if (last_index_ < 2 || last_index_ > static_cast<int>(route_.size()))
@@ -317,7 +318,9 @@ private:
  * @return True only after stopped hold completes. */
   bool settled(bool in_tolerance)
   {
-    if (!in_tolerance || std::hypot(vx_, vy_) > .01 || std::abs(wz_) > .02) {
+    if (
+      !in_tolerance || std::hypot(vx_, vy_) > .01 ||
+      std::abs(wz_) > (moving_ ? .02 : turn_stop_yaw_rate_)) {
       holding_ = false;
       return false;
     }
@@ -341,7 +344,7 @@ private:
   {
     if (moving_) return;
     const bool angle_ok = std::abs(e) < .01;
-    const bool angular_ok = std::abs(wz_) <= .02;
+    const bool angular_ok = std::abs(wz_) <= turn_stop_yaw_rate_;
     const double linear_speed = std::hypot(vx_, vy_);
     const bool linear_ok = linear_speed <= .01;
     const double held = holding_ ? std::max(0.0, (now() - hold_).seconds()) : 0.0;
@@ -353,11 +356,11 @@ private:
     RCLCPP_INFO_THROTTLE(
       get_logger(), diagnostic_clock_, 500,
       "TURN_SETTLING P%02zu stage=%s reason=%s | error=%.6f rad tol=0.010000 angle_ok=%d | "
-      "measured_wz=%.6f limit=0.020000 angular_ok=%d | linear_speed=%.6f limit=0.010000 "
+      "measured_wz=%.6f limit=%.6f angular_ok=%d | linear_speed=%.6f limit=0.010000 "
       "linear_ok=%d | hold_ros=%.3f/%.3f s | stage_ros=%.3f stage_wall=%.3f s",
-      index_ + 1, final_turn_active_ ? "FINAL_TURN" : "TURN", reason, e, angle_ok, wz_, angular_ok,
-      linear_speed, linear_ok, held, stop_hold_, (now() - stage_ros_started_).seconds(),
-      elapsed(stage_started_));
+      index_ + 1, final_turn_active_ ? "FINAL_TURN" : "TURN", reason, e, angle_ok, wz_,
+      turn_stop_yaw_rate_, angular_ok, linear_speed, linear_ok, held, stop_hold_,
+      (now() - stage_ros_started_).seconds(), elapsed(stage_started_));
   }
 
   /** @brief Apply laser-based near-wall course correction to a moving body-frame velocity.
@@ -685,22 +688,27 @@ private:
   rclcpp::Time scan_stamp_{0, 0, RCL_ROS_TIME};  ///< Last accepted scan ROS stamp.
   rclcpp::Time last_{0, 0, RCL_ROS_TIME};        ///< Last PID update ROS time.
   rclcpp::Time hold_{0, 0, RCL_ROS_TIME};        ///< Stopped qualification start ROS time.
-  double turn_x_{};         ///< Odom x at TURN entry, meters; bounds local clearance recovery.
-  double turn_y_{};         ///< Odom y at TURN entry, meters; bounds local clearance recovery.
-  double x_{};              ///< Current odom x, meters.
-  double y_{};              ///< Current odom y, meters.
-  double yaw_{};            ///< Current odom heading, radians.
-  double vx_{};             ///< Measured body x velocity, m/s.
-  double vy_{};             ///< Measured body y velocity, m/s.
-  double wz_{};             ///< Measured body yaw rate, rad/s.
-  double ox_{};             ///< Frozen P01 odom x, meters.
-  double oy_{};             ///< Frozen P01 odom y, meters.
-  double oyaw_{};           ///< Frozen route heading, radians.
-  double tx_{};             ///< Fixed destination odom x, meters.
-  double ty_{};             ///< Fixed destination odom y, meters.
-  double heading_{};        ///< Fixed destination odom yaw, radians.
-  double speed_{};          ///< Planar PID speed bound, m/s.
-  double accel_{};          ///< Planar PID slew bound, m/s squared.
+  double turn_x_{};   ///< Odom x at TURN entry, meters; bounds local clearance recovery.
+  double turn_y_{};   ///< Odom y at TURN entry, meters; bounds local clearance recovery.
+  double x_{};        ///< Current odom x, meters.
+  double y_{};        ///< Current odom y, meters.
+  double yaw_{};      ///< Current odom heading, radians.
+  double vx_{};       ///< Measured body x velocity, m/s.
+  double vy_{};       ///< Measured body y velocity, m/s.
+  double wz_{};       ///< Measured body yaw rate, rad/s.
+  double ox_{};       ///< Frozen P01 odom x, meters.
+  double oy_{};       ///< Frozen P01 odom y, meters.
+  double oyaw_{};     ///< Frozen route heading, radians.
+  double tx_{};       ///< Fixed destination odom x, meters.
+  double ty_{};       ///< Fixed destination odom y, meters.
+  double heading_{};  ///< Fixed destination odom yaw, radians.
+  double speed_{};    ///< Planar PID speed bound, m/s.
+  double accel_{};    ///< Planar PID slew bound, m/s squared.
+  /** @brief TURN/FINAL_TURN accepted odom yaw rate, rad/s.
+   * Set by the constructor parameter; read by settled() and log_turn_settling().
+   * Startup and MOVE retain their 0.02 rad/s threshold.
+   */
+  double turn_stop_yaw_rate_{};
   double stop_hold_{};      ///< Required stopped pose hold in ROS seconds; excludes startup.
   double stage_timeout_{};  ///< Steady stage deadline, seconds.
   int last_index_{15};      ///< One-based final route point.

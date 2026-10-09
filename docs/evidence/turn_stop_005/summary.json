@@ -1,0 +1,13 @@
+{
+  "run": "/home/cooper/ros2_ws/training_notes/checkpoint18/robot_control_rosbot_xl/code_lab/runtime_logs/task5_survey_20261010_002021",
+  "exit_code": 0,
+  "route_seconds": 94.481,
+  "reached": 14,
+  "obstacle_holds": 2,
+  "contacts": {
+    "packets": 97974,
+    "floor_points": 814160,
+    "wall_points": 0,
+    "last_packet": 147443.098279895
+  }
+}

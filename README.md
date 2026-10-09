@@ -126,3 +126,7 @@ no 90-second acceptance limit. See [terminal turn verification](docs/final_turn.
 `TURN_SETTLING` reports the current failing gate, measured speeds, continuous hold,
 and ROS/steady elapsed times. See [field guide](docs/turn_diagnostics.md).
 This instrumentation does not change control parameters.
+
+Turn stop trial: default turn_stop_yaw_rate=0.05 rad/s (TURN/FINAL_TURN only).
+Use --ros-args -p turn_stop_yaw_rate:=0.02 to restore the previous turn threshold.
+Heading tolerance and stopped hold are unchanged. See [diagnostics](docs/turn_diagnostics.md).

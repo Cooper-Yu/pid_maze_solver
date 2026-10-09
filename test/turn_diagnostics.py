@@ -24,7 +24,7 @@ def publish_feedback(node, odom_pub, scan_pub, elapsed):
     odom.child_frame_id = 'base_link'
     odom.pose.pose.orientation.z = math.sin(yaw / 2)
     odom.pose.pose.orientation.w = math.cos(yaw / 2)
-    odom.twist.twist.angular.z = 0.05 if 3 <= elapsed < 5 else 0.0
+    odom.twist.twist.angular.z = 0.08 if 3 <= elapsed < 5 else 0.0
     odom.twist.twist.linear.x = 0.02 if 5 <= elapsed < 7 else 0.0
     odom_pub.publish(odom)
     scan = LaserScan()
@@ -73,6 +73,7 @@ def main():
                 assert f'reason={reason}' in log, reason
             assert 'Final clockwise turn:' not in log
             assert commands and commands[-1].linear.x == 0 and commands[-1].angular.z == 0
+            assert 'limit=0.050000' in log
             print(log)
             print('Diagnostic gates and partial-route termination: PASS')
         finally:
