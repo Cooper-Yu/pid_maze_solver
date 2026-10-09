@@ -1,0 +1,136 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Engineering: python3 tools/check_style.py",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "tools/check_style.py"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Engineering: doxygen docs/Doxyfile",
+      "type": "process",
+      "command": "doxygen",
+      "args": [
+        "docs/Doxyfile"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "pid_maze_solver: clang-tidy (Problems)",
+      "type": "process",
+      "command": "clang-tidy",
+      "args": [
+        "${file}",
+        "-p",
+        "${input:workspaceRoot}/build/pid_maze_solver",
+        "--use-color=false"
+      ],
+      "problemMatcher": {
+        "owner": "training-clang-tidy-pid_maze_solver",
+        "source": "clang-tidy (task)",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^(.+):(\\d+):(\\d+): (warning|error): (.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "pid_maze_solver: documentation (Problems)",
+      "type": "process",
+      "command": "doxygen",
+      "args": [
+        "docs/Doxyfile.check"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": {
+        "owner": "training-doxygen-pid_maze_solver",
+        "source": "Doxygen (task)",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^(.+):(\\d+): (warning|error): (.*)$",
+          "file": 1,
+          "line": 2,
+          "severity": 3,
+          "message": 4
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "Engineering: colcon build --packages-select pid_maze_solver --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+      "type": "process",
+      "command": "colcon",
+      "args": [
+        "build",
+        "--packages-select",
+        "pid_maze_solver",
+        "--cmake-args",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"
+      ],
+      "options": {
+        "cwd": "${input:workspaceRoot}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Engineering: colcon test --packages-select pid_maze_solver",
+      "type": "process",
+      "command": "colcon",
+      "args": [
+        "test",
+        "--packages-select",
+        "pid_maze_solver"
+      ],
+      "options": {
+        "cwd": "${input:workspaceRoot}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Engineering: colcon test-result --verbose",
+      "type": "process",
+      "command": "colcon",
+      "args": [
+        "test-result",
+        "--verbose"
+      ],
+      "options": {
+        "cwd": "${input:workspaceRoot}"
+      },
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "workspaceRoot",
+      "type": "promptString",
+      "description": "Absolute colcon workspace path with the correct ROS environment sourced"
+    }
+  ]
+}

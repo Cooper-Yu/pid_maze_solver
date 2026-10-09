@@ -1,0 +1,3 @@
+/** @page interfaces Interfaces
+ * PIDMazeSolver owns the sole velocity publisher. See maze::Point for route units.
+ */

@@ -1,0 +1,529 @@
+/** @file
+ * @brief One-owner turn/move maze state machine with odom feedback and laser guards. */
+#include <algorithm>
+#include <chrono>
+#include <memory>
+#include <vector>
+
+#include "geometry_msgs/msg/twist.hpp"
+#include "nav_msgs/msg/odometry.hpp"
+#include "pid_maze_solver/pid.hpp"
+#include "pid_maze_solver/route.hpp"
+#include "rclcpp/rclcpp.hpp"
+#include "sensor_msgs/msg/laser_scan.hpp"
+#include "tf2/LinearMath/Matrix3x3.h"
+#include "tf2/LinearMath/Quaternion.h"
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_listener.h"
+/** @brief Monotonic clock used for feedback and execution watchdogs. */
+using Clock = std::chrono::steady_clock;
+
+/** @brief Execute TURN then MOVE at each supplied pose, preserving destination yaw during holonomic motion. */
+class PIDMazeSolver : public rclcpp::Node
+{
+public:
+  /** @brief Configure simulator interfaces, gains and guarded execution without starting motion immediately. */
+  PIDMazeSolver() : Node("pid_maze_solver"), buffer_(get_clock()), listener_(buffer_)
+  {
+    if (!get_node_parameters_interface()->get_parameter_overrides().count("use_sim_time"))
+      set_parameter(rclcpp::Parameter("use_sim_time", true));
+    speed_ = positive("max_speed", 0.12);
+    accel_ = positive("max_acceleration", 0.25);
+    const double kp = positive("distance_kp", 1.5), ki = nonnegative("distance_ki", 0.0),
+                 kd = nonnegative("distance_kd", 0.0);
+    px_ = std::make_unique<maze::AxisPid>(kp, ki, kd, speed_, accel_);
+    py_ = std::make_unique<maze::AxisPid>(kp, ki, kd, speed_, accel_);
+    yaw_pid_ = std::make_unique<maze::AxisPid>(
+      positive("turn_kp", 1.8), nonnegative("turn_ki", 0.03), nonnegative("turn_kd", 0.35),
+      positive("max_yaw_rate", 0.6), 0.6);
+    stage_timeout_ = positive("stage_timeout", 60.0);
+    last_index_ = declare_parameter<int>("last_point", 15);
+    if (last_index_ < 2 || last_index_ > 15)
+      throw std::invalid_argument("last_point must be 2..15");
+    pub_ = create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", 10);
+    odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
+      "/odometry/filtered", rclcpp::SensorDataQoS(),
+      [this](nav_msgs::msg::Odometry::SharedPtr m) { odom(*m); });
+    scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
+      declare_parameter<std::string>("scan_topic", "/scan"), rclcpp::SensorDataQoS(),
+      [this](sensor_msgs::msg::LaserScan::SharedPtr m) { scan(*m); });
+    timer_ = create_wall_timer(std::chrono::milliseconds(20), [this] { tick(); });
+    RCLCPP_INFO(
+      get_logger(), "Task5: %d points; destination yaw preserved; distance PID=(%.2f,%.2f,%.2f)",
+      last_index_, kp, ki, kd);
+  }
+
+  /** @brief Return process status to main(); zero only after normal route completion. */
+  int result() const
+  {
+    return code_;
+  }
+
+  /** @brief Publish zero at process cleanup; no new motion is requested. */
+  void stop()
+  {
+    pub_->publish(geometry_msgs::msg::Twist{});
+  }
+
+private:
+  /** @brief Read finite nonnegative gain/bound from node parameter overrides.
+  *
+ * @param[in] key Constructor parameter name.
+ * @param[in] value Default read by declaration.
+  *
+ * @return Validated value stored by the constructor; throws for invalid input. */
+  double nonnegative(const std::string & key, double value)
+  {
+    double v = declare_parameter<double>(key, value);
+    if (!std::isfinite(v) || v < 0) throw std::invalid_argument(key);
+    return v;
+  }
+
+  /** @brief Read a strictly positive bound.
+ * @param[in] key Constructor key.
+  *
+ * @param[in] value Default value.
+ * @return Validated bound for controller configuration. */
+  double positive(const std::string & key, double value)
+  {
+    double v = nonnegative(key, value);
+    if (v == 0) throw std::invalid_argument(key);
+    return v;
+  }
+
+  /** @brief Stop and terminate a failed task without advancing a waypoint.
+  *
+ * @param[in] reason Diagnostic supplied by the guard that failed. */
+  void fail(const char * reason)
+  {
+    stop();
+    code_ = 2;
+    RCLCPP_ERROR(
+      get_logger(), "%s point=P%02zu stage=%s", reason, index_ + 1, moving_ ? "MOVE" : "TURN");
+    rclcpp::shutdown();
+  }
+
+  /** @brief Validate feedback and store only advancing, fresh odometry.
+  *
+ * @param[in] m Subscription message; pose and body velocity copied to persistent state. */
+  void odom(const nav_msgs::msg::Odometry & m)
+  {
+    const rclcpp::Time stamp(m.header.stamp, get_clock()->get_clock_type());
+    const double age = (now() - stamp).seconds();
+    if (stamp.nanoseconds() <= 0 || age < -.1 || age > .5 || (have_odom_ && stamp <= odom_stamp_))
+      return;
+    const auto & q = m.pose.pose.orientation;
+    double norm = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
+    double roll, pitch, yaw;
+    if (!std::isfinite(norm) || std::abs(norm - 1.0) > .01) return;
+    tf2::Matrix3x3(tf2::Quaternion(q.x, q.y, q.z, q.w)).getRPY(roll, pitch, yaw);
+    const auto & p = m.pose.pose.position;
+    const auto & v = m.twist.twist;
+    if (
+      !std::isfinite(norm) || std::abs(norm - 1) > .01 || !std::isfinite(p.x) ||
+      !std::isfinite(p.y) || !std::isfinite(v.linear.x) || !std::isfinite(v.linear.y) ||
+      !std::isfinite(v.angular.z) || m.header.frame_id.empty() || m.child_frame_id != "base_link")
+      return;
+    if (
+      have_odom_ && (m.header.frame_id != frame_ || std::hypot(p.x - x_, p.y - y_) > .2 ||
+                     std::abs(maze::wrap(yaw - yaw_)) > .35)) {
+      fail("ODOM_DISCONTINUITY");
+      return;
+    }
+    frame_ = m.header.frame_id;
+    x_ = p.x;
+    y_ = p.y;
+    yaw_ = yaw;
+    vx_ = v.linear.x;
+    vy_ = v.linear.y;
+    wz_ = v.angular.z;
+    odom_stamp_ = stamp;
+    odom_received_ = Clock::now();
+    have_odom_ = true;
+  }
+
+  /** @brief Transform finite laser returns into base_link using the scan frame's TF.
+  *
+ * @param[in] m Scan callback message; valid points replace the collision/correction snapshot.
+  *
+ * @note Invalid/stale scans do not refresh the watchdog. Infinite returns are not wall points. */
+  void scan(const sensor_msgs::msg::LaserScan & m)
+  {
+    const rclcpp::Time stamp(m.header.stamp, get_clock()->get_clock_type());
+    double age = (now() - stamp).seconds();
+    if (stamp.nanoseconds() <= 0 || age < -.1 || age > .5 || (have_scan_ && stamp <= scan_stamp_))
+      return;
+    try {
+      auto tf = buffer_.lookupTransform("base_link", m.header.frame_id, tf2::TimePointZero);
+      const auto & q = tf.transform.rotation;
+      tf2::Matrix3x3 rotation(tf2::Quaternion(q.x, q.y, q.z, q.w));
+      std::vector<std::array<double, 2>> points;
+      for (std::size_t i = 0; i < m.ranges.size(); ++i) {
+        double d = m.ranges[i];
+        if (!std::isfinite(d) || d < m.range_min || d > m.range_max) continue;
+        double a = m.angle_min + i * m.angle_increment;
+        auto p = rotation * tf2::Vector3(d * std::cos(a), d * std::sin(a), 0);
+        const double bx = p.x() + tf.transform.translation.x,
+                     by = p.y() + tf.transform.translation.y;
+        /** Exclude the known base_link chassis self-return box. */
+        if (bx >= -.195 && bx <= .165 && std::abs(by) <= .145) continue;
+        points.push_back({bx, by});
+      }
+      if (points.size() < 30) return;
+      points_ = std::move(points);
+      scan_received_ = Clock::now();
+      scan_stamp_ = stamp;
+      have_scan_ = true;
+    } catch (const tf2::TransformException &) {
+      return;
+    }
+  }
+
+  /** @brief Reset both PID histories whenever the state changes, preserving fixed route targets. */
+  void reset()
+  {
+    px_->reset();
+    py_->reset();
+    yaw_pid_->reset();
+    holding_ = false;
+    blocked_ = false;
+  }
+
+  /** @brief Select a supplied waypoint and transform it once from route coordinates to odom. */
+  void target()
+  {
+    const auto & p = maze::route[index_];
+    tx_ = ox_ + std::cos(oyaw_) * p.x - std::sin(oyaw_) * p.y;
+    ty_ = oy_ + std::sin(oyaw_) * p.x + std::cos(oyaw_) * p.y;
+    heading_ = oyaw_ + p.yaw;
+    turn_x_ = x_;
+    turn_y_ = y_;
+    moving_ = false;
+    reset();
+    stage_started_ = Clock::now();
+    RCLCPP_INFO(
+      get_logger(), "Target P%02zu: x=%.6f y=%.6f yaw=%.6f; TURN then MOVE", index_ + 1, tx_, ty_,
+      heading_);
+  }
+
+  /** @brief Require fresh sensors and stopped feedback before anchoring the entire route.
+   *
+ * @return False; tick() ends this callback even when target() selects the first destination.
+   *
+ * @note Records the stopped odom origin; does not physically reposition the robot. */
+  bool initialize()
+  {
+    if (elapsed(started_) > 15) {
+      fail("INITIAL_FEEDBACK_TIMEOUT");
+      return false;
+    }
+    if (
+      !have_odom_ || !have_scan_ || elapsed(odom_received_) > .5 || elapsed(scan_received_) > .5) {
+      stop();
+      if (elapsed(started_) > 15) fail("INITIAL_FEEDBACK_TIMEOUT");
+      return false;
+    }
+    if (std::hypot(vx_, vy_) > .01 || std::abs(wz_) > .02) {
+      holding_ = false;
+      stop();
+      return false;
+    }
+    if (!holding_) {
+      holding_ = true;
+      hold_ = now();
+    }
+    stop();
+    if ((now() - hold_).seconds() < .4) return false;
+    ox_ = x_;
+    oy_ = y_;
+    oyaw_ = yaw_;
+    initialized_ = true;
+    last_ = now();
+    index_ = 1;
+    RCLCPP_INFO(get_logger(), "Route origin P01: x=%.6f y=%.6f yaw=%.6f", ox_, oy_, oyaw_);
+    target();
+    return false;
+  }
+
+  /** @brief Measure wall-clock age for watchdogs.
+  *
+ * @param[in] t Stored receipt/start time.
+ * @return Elapsed steady seconds, independent of ROS pauses. */
+  double elapsed(Clock::time_point t) const
+  {
+    return std::chrono::duration<double>(Clock::now() - t).count();
+  }
+
+  /** @brief Hold stopped conditions continuously for 0.4 ROS seconds.
+  *
+ * @param[in] in_tolerance Pose predicate from tick().
+ * @return True only after stopped hold completes. */
+  bool settled(bool in_tolerance)
+  {
+    if (!in_tolerance || std::hypot(vx_, vy_) > .01 || std::abs(wz_) > .02) {
+      holding_ = false;
+      return false;
+    }
+    if (!holding_) {
+      holding_ = true;
+      hold_ = now();
+    }
+    return (now() - hold_).seconds() >= .4;
+  }
+
+  /** @brief Apply laser-based near-wall course correction to a moving body-frame velocity.
+  *
+ * @param[in,out] cmd Desired body velocity from move(); adds a bounded repulsive component,
+  * then returns the corrected command to tick() for swept-footprint protection and publication.
+  *
+ * @note Correction cannot declare arrival; odom position and heading remain authoritative. */
+  void correct(geometry_msgs::msg::Twist & cmd)
+  {
+    double rx = 0, ry = 0;
+    for (const auto & p : points_) {
+      double c = maze::clearance(p[0], p[1]);
+      if (c >= .07) continue;
+      double d = std::hypot(p[0], p[1]);
+      if (d < .01) continue;
+      double gain = std::clamp((.07 - c) * .5, 0.0, .025);
+      double ax = -gain * p[0] / d, ay = -gain * p[1] / d;
+      if (std::abs(ax) > std::abs(rx)) rx = ax;
+      if (std::abs(ay) > std::abs(ry)) ry = ay;
+    }
+    const double blend = std::clamp((std::hypot(tx_ - x_, ty_ - y_) - .015) / .10, 0.0, 1.0);
+    cmd.linear.x += blend * rx;
+    cmd.linear.y += blend * ry;
+  }
+
+  /** @brief Predict a conservative swept chassis over a braking horizon from current laser points.
+  *
+ * @param[in] cmd Candidate body command from tick(), read without alteration.
+  *
+ * @param[in] escape True for non-worsening clearance recovery; false for normal motion.
+  *
+ * @return False when current or predicted footprint clearance is below 15 mm; caller stops.
+  *
+ * @note Includes measured velocity to cover residual movement; no global collision-free claim. */
+  bool safe(const geometry_msgs::msg::Twist & cmd, bool escape = false)
+  {
+    for (const auto & p : points_)
+      for (int k = 0; k <= 6; ++k) {
+        double t = k * .08;
+        for (int v = 0; v < 2; ++v) {
+          double x = p[0] - (v ? vx_ : cmd.linear.x) * t, y = p[1] - (v ? vy_ : cmd.linear.y) * t;
+          double a = -(v ? wz_ : cmd.angular.z) * t;
+          const double before = maze::clearance(p[0], p[1]);
+          const double after =
+            maze::clearance(std::cos(a) * x - std::sin(a) * y, std::sin(a) * x + std::cos(a) * y);
+          const bool unsafe =
+            escape ? (before < .005 || after < std::min(.015, before) - .0001) : after < .015;
+          if (unsafe) {
+            RCLCPP_WARN_THROTTLE(
+              get_logger(), *get_clock(), 1000,
+              "Blocked point=(%.3f,%.3f) horizon=%.2f measured=%d", p[0], p[1], t, v);
+            return false;
+          }
+        }
+      }
+    return true;
+  }
+
+  /** @brief Compute translational PID in odom then rotate output into body coordinates.
+  *
+ * @param[in] dt Positive ROS seconds from tick().
+ * @param[in,out] cmd Writes linear x/y,
+  * preserving the heading controller's angular z; correction and guard consume it next. */
+  void move(double dt, geometry_msgs::msg::Twist & cmd)
+  {
+    const double c = std::cos(yaw_), s = std::sin(yaw_);
+    double wx = px_->update(tx_ - x_, c * vx_ - s * vy_, dt),
+           wy = py_->update(ty_ - y_, s * vx_ + c * vy_, dt);
+    const double scale = std::min(1.0, speed_ / std::max(1e-9, std::hypot(wx, wy)));
+    cmd.linear.x = scale * (c * wx + s * wy);
+    cmd.linear.y = scale * (-s * wx + c * wy);
+    correct(cmd);
+  }
+
+  /** @brief Recover turning clearance by a bounded translation away from the nearest wall.
+   *
+ * @note Called only after a blocked TURN, with no rotation commanded; abort beyond 6 cm.
+   *
+ * @return True if a separately guarded clearance command was published, false otherwise.
+   */
+  bool recover_turn_clearance()
+  {
+    if (moving_ || std::abs(wz_) > .02 || std::hypot(vx_, vy_) > .03) return false;
+    if (std::hypot(x_ - turn_x_, y_ - turn_y_) > .06) {
+      fail("TURN_CLEARANCE_LIMIT");
+      return false;
+    }
+    auto point =
+      std::min_element(points_.begin(), points_.end(), [](const auto & a, const auto & b) {
+        return maze::clearance(a[0], a[1]) < maze::clearance(b[0], b[1]);
+      });
+    if (point == points_.end()) return false;
+    double norm = std::hypot((*point)[0], (*point)[1]);
+    geometry_msgs::msg::Twist escape;
+    escape.linear.x = -.02 * (*point)[0] / norm;
+    escape.linear.y = -.02 * (*point)[1] / norm;
+    if (!safe(escape, true)) return false;
+    pub_->publish(escape);
+    RCLCPP_INFO_THROTTLE(
+      get_logger(), *get_clock(), 1000, "CLEARANCE adjustment before TURN P%02zu", index_ + 1);
+    return true;
+  }
+
+  /** @brief Complete a stopped TURN or MOVE and select the next state.
+   *
+ * @param[in] distance Current odom position error from tick(), meters, used in arrival logging.
+   *
+ * @param[in] e Current heading error from tick(), radians, used in arrival logging.
+   *
+ * @note Writes moving_, index_ and targets; final waypoint stops and shuts down ROS.
+   */
+  void complete_stage(double distance, double e)
+  {
+    stop();
+    if (!settled(true)) return;
+    if (!moving_) {
+      moving_ = true;
+      reset();
+      stage_started_ = Clock::now();
+      RCLCPP_INFO(get_logger(), "P%02zu MOVE", index_ + 1);
+    } else {
+      RCLCPP_INFO(
+        get_logger(), "Reached P%02zu: distance=%.6f heading_error=%.6f", index_ + 1, distance, e);
+      if (++index_ >= static_cast<std::size_t>(last_index_)) {
+        stop();
+        RCLCPP_INFO(get_logger(), "Route completed; stopped.");
+        rclcpp::shutdown();
+        return;
+      }
+      target();
+    }
+  }
+
+  /** @brief Advance TURN/MOVE/arrival states, enforcing all feedback and obstacle guards. */
+  void tick()
+  {
+    if (!initialized_) {
+      initialize();
+      return;
+    }
+    if (elapsed(odom_received_) > .5 || elapsed(scan_received_) > .5) {
+      fail("FEEDBACK_TIMEOUT");
+      return;
+    }
+    if (elapsed(stage_started_) > stage_timeout_) {
+      fail("STAGE_TIMEOUT");
+      return;
+    }
+    const double dt = (now() - last_).seconds();
+    if (dt == 0) return;
+    if (dt < 0 || dt > .5) {
+      fail("CLOCK_JUMP");
+      return;
+    }
+    last_ = now();
+    double e = maze::wrap(heading_ - yaw_), distance = std::hypot(tx_ - x_, ty_ - y_);
+    bool close = std::abs(e) < .01 && (!moving_ || distance < .015);
+    if (close) {
+      complete_stage(distance, e);
+      return;
+    }
+    holding_ = false;
+    geometry_msgs::msg::Twist cmd;
+    cmd.angular.z = yaw_pid_->update(e, wz_, dt);
+    if (moving_ && std::abs(e) < .15) move(dt, cmd);
+    if (!safe(cmd)) {
+      stop();
+      px_->reset();
+      py_->reset();
+      yaw_pid_->reset();
+      if (!blocked_) {
+        blocked_ = true;
+        blocked_since_ = Clock::now();
+        RCLCPP_WARN(get_logger(), "OBSTACLE_HOLD P%02zu", index_ + 1);
+      }
+      if (recover_turn_clearance()) return;
+      if (elapsed(blocked_since_) > 5) fail("OBSTACLE_BLOCKED");
+      return;
+    }
+    blocked_ = false;
+    pub_->publish(cmd);
+    RCLCPP_INFO_THROTTLE(
+      get_logger(), *get_clock(), 1000,
+      "P%02zu %s distance=%.3f yaw_error=%.3f cmd=(%.3f,%.3f,%.3f)", index_ + 1,
+      moving_ ? "MOVE" : "TURN", distance, e, cmd.linear.x, cmd.linear.y, cmd.angular.z);
+  }
+
+  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pub_;        ///< Sole velocity publisher.
+  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;  ///< Advancing pose feedback.
+  rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;  ///< Wall observations.
+  rclcpp::TimerBase::SharedPtr timer_;         ///< 20ms steady timer, ROS-time PID updates.
+  tf2_ros::Buffer buffer_;                     ///< Scan-to-body transforms.
+  tf2_ros::TransformListener listener_;        ///< TF subscription owner.
+  std::vector<std::array<double, 2>> points_;  ///< Accepted laser points in base_link, meters.
+  std::string frame_;                          ///< Odom frame retained to detect frame changes.
+  std::unique_ptr<maze::AxisPid> px_;          ///< Odom x PID; state reset at each stage.
+  std::unique_ptr<maze::AxisPid> py_;          ///< Odom y PID; state reset at each stage.
+  std::unique_ptr<maze::AxisPid> yaw_pid_;   ///< Heading PID; radian error and body yaw-rate input.
+  Clock::time_point started_{Clock::now()};  ///< Steady startup deadline base.
+  Clock::time_point odom_received_{};        ///< Steady time of last accepted odom.
+  Clock::time_point scan_received_{};        ///< Steady time of last accepted scan.
+  Clock::time_point stage_started_{};        ///< Steady TURN/MOVE deadline base.
+  Clock::time_point blocked_since_{};        ///< Steady start of continuous obstacle hold.
+  rclcpp::Time odom_stamp_{0, 0, RCL_ROS_TIME};  ///< Last accepted odom ROS stamp.
+  rclcpp::Time scan_stamp_{0, 0, RCL_ROS_TIME};  ///< Last accepted scan ROS stamp.
+  rclcpp::Time last_{0, 0, RCL_ROS_TIME};        ///< Last PID update ROS time.
+  rclcpp::Time hold_{0, 0, RCL_ROS_TIME};        ///< Stopped qualification start ROS time.
+  double turn_x_{};         ///< Odom x at TURN entry, meters; bounds local clearance recovery.
+  double turn_y_{};         ///< Odom y at TURN entry, meters; bounds local clearance recovery.
+  double x_{};              ///< Current odom x, meters.
+  double y_{};              ///< Current odom y, meters.
+  double yaw_{};            ///< Current odom heading, radians.
+  double vx_{};             ///< Measured body x velocity, m/s.
+  double vy_{};             ///< Measured body y velocity, m/s.
+  double wz_{};             ///< Measured body yaw rate, rad/s.
+  double ox_{};             ///< Frozen P01 odom x, meters.
+  double oy_{};             ///< Frozen P01 odom y, meters.
+  double oyaw_{};           ///< Frozen route heading, radians.
+  double tx_{};             ///< Fixed destination odom x, meters.
+  double ty_{};             ///< Fixed destination odom y, meters.
+  double heading_{};        ///< Fixed destination odom yaw, radians.
+  double speed_{};          ///< Planar PID speed bound, m/s.
+  double accel_{};          ///< Planar PID slew bound, m/s squared.
+  double stage_timeout_{};  ///< Steady stage deadline, seconds.
+  int last_index_{15};      ///< One-based final route point.
+  int code_{};              ///< Process failure code; zero on normal completion.
+  std::size_t index_{1};    ///< Zero-based active destination; P01 is the origin.
+  bool have_odom_{};        ///< True after accepting at least one odom message.
+  bool have_scan_{};        ///< True after accepting a TF-transformed scan.
+  bool initialized_{};      ///< True once the route origin has been frozen.
+  bool moving_{};           ///< True for MOVE, false for TURN.
+  bool holding_{};          ///< True while continuously qualifying stopped pose.
+  bool blocked_{};          ///< True while stopped by the obstacle guard.
+};
+
+/** @brief Own controller lifetime and return its failure status.
+ *
+ * @param[in] argc Shell argument count passed to ROS.
+ *
+ * @param[in] argv ROS arguments read by initialization.
+ *
+ * @return Zero on final completion, two on guarded failure, one on configuration error. */
+int main(int argc, char ** argv)
+{
+  rclcpp::init(argc, argv);
+  try {
+    auto n = std::make_shared<PIDMazeSolver>();
+    rclcpp::spin(n);
+    n->stop();
+    if (rclcpp::ok()) rclcpp::shutdown();
+    return n->result();
+  } catch (const std::exception & e) {
+    fprintf(stderr, "%s\n", e.what());
+    if (rclcpp::ok()) rclcpp::shutdown();
+    return 1;
+  }
+}
