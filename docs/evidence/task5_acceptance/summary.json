@@ -1,0 +1,27 @@
+{
+  "tested_source_commit": "3bec06ee90682b0b4cd90f2b2ecbdbf5bcd46326",
+  "reached_points": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15
+  ],
+  "max_arrival_distance_m": 0.013157,
+  "max_arrival_heading_error_rad": 0.003048,
+  "final_rotation_rad": -3.132904,
+  "final_error_rad": -0.008689,
+  "user_confirmed_no_collision": true,
+  "cloud_exit_code": null,
+  "limitation": "Last line truncated; no shell exit code or complete Route completed line supplied. Functional acceptance combines logs with user confirmation.",
+  "obstacle_hold_messages": 0
+}

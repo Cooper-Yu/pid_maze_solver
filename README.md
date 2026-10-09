@@ -130,3 +130,8 @@ This instrumentation does not change control parameters.
 Turn stop trial: default turn_stop_yaw_rate=0.05 rad/s (TURN/FINAL_TURN only).
 Use --ros-args -p turn_stop_yaw_rate:=0.02 to restore the previous turn threshold.
 Heading tolerance and stopped hold are unchanged. See [diagnostics](docs/turn_diagnostics.md).
+
+
+## Task5 acceptance
+
+The user accepted the 0.05 rad/s turn-stop version after the cloud route and final clockwise half-turn, with no collision confirmed. Frozen snapshot: `task5`. See [acceptance evidence and limits](docs/task5_acceptance.md).
