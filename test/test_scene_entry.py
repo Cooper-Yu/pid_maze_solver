@@ -144,6 +144,15 @@ class EntryContract(unittest.TestCase):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             maze_entry.parse_args(['2', '--ros-args', '-p', 'use_sim_time:=true'])
 
+    def test_supervised_explicit_guard_mode_and_scene_boundary(self):
+        args, _ = maze_entry.parse_args(['2', '--supervised', '--destination', 'P12'])
+        with patch.object(maze_entry, 'executable', return_value='/fake/runner'):
+            command = maze_entry.backend_command(args, Path('/tmp/route.json'), [])
+        self.assertIn('--supervised', command)
+        self.assertNotIn('--laser-log-only', command)
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            maze_entry.parse_args(['1', '--supervised'])
+
     def test_fake_process_exit_and_cancellation(self):
         self.assertEqual(maze_entry.run_owned([sys.executable, '-c', 'raise SystemExit(7)']), 7)
         timer = threading.Timer(0.2, os.kill, args=(os.getpid(), signal.SIGINT))

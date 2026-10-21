@@ -81,3 +81,16 @@ cleanup using fake owned processes. Existing C++ tests protect the preserved Tas
 math. Installed dry-runs and rejection of the unvalidated full route do not move
 a robot. Backend synthetic-feedback tests and real-robot verification are separate;
 a wrapper build or a successful prefix does not complete Task6.
+## Experimental same-process supervised mode
+
+`ros2 run pid_maze_solver pid_maze_solver 2 --destination P12 --supervised`
+prepares once and then waits for `next` before every action. This explicit mode
+uses an enforced laser guard and caps linear/angular speed at 0.03 m/s / 0.10 rad/s.
+The approved prefix gate is unchanged; `next` cannot continue beyond P12.
+`back_plan` then `back TOKEN` may undo only the last completed translation while
+retaining every bend and original P01. Turns and partial motions cannot be undone.
+`quit`/EOF closes the session; exit 0 is orderly closure, not route completion.
+No restart/resume or old-session loading is provided. The normal noninteractive
+entry is unchanged. This mode is local engineering support, not validated physical
+P12-to-P01 recovery; strict missing-ray stops remain. See the backend package's
+`docs/route_session.md` for the contract and evidence boundary.

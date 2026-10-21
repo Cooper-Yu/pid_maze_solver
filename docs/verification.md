@@ -144,3 +144,36 @@ and 4 cm turn-center guards. The frontend source required no change for integrat
 This establishes the installed execution/exit/cleanup chain under synthetic
 feedback. It does not validate P13 geometry, active laser obstacle avoidance,
 physical repeatability, or full Task6 acceptance.
+## 2026-10-22 supervised single-segment local verification
+
+Environment: WSL Ubuntu-22.04 / Humble, localhost-only domain 192, synthetic
+scan/odom/TF; no cloud or physical robot. The installed official frontend was
+used with a complete temporary YAML and `--supervised`, not a fake stdin success
+parser. `bash /tmp/route_session_ros.bash` builds both packages and executes
+`distance_controller/test/verify_route_session.py` with a bounded timeout.
+
+Evidence `/tmp/route_session_ros/1792617367284358424/`:
+
+- success: outward translation, token-confirmed return to original P01, exit 0.
+- return_stale: odometry removed during return, exit 2, no returned event.
+- return_scan_stale: scans withheld during return, exit 2, no returned event.
+- return_cancel: SIGINT during return, frontend exit 130, no returned event.
+- turn_boundary: completed turn then back_plan rejected without moving, quit exit 0.
+
+Every case verified final zero, no remaining cmd_vel publisher, released process
+lock, enforced guard audit, and absence of `route_completed`. Exit 0 in this mode
+means orderly session closure, not full-route acceptance. The final optional
+polyline-length deadline change was unit-tested (0.8 m return gets 110 s, default
+unchanged at 30 s) and the rebuilt installed roundtrip rechecked at
+`/tmp/route_session_ros/1792617536181642942/success/runtime.log`.
+
+14 new state/runtime tests passed and are registered as CTest test_route_session;
+13 existing backend and 10 console tests passed. Frontend tests now total 11.
+Humble build, Ruff formatting/check and git diff --check passed. The five-case
+fixture's 13-branch dispatch has a narrow PLR0912 exemption because it describes
+explicit fault-injection states; production code passes without size exemptions.
+
+The guard's strict missing-ray restriction is unchanged. No turn undo, partial
+recovery, old-session adoption, P12-to-P01 full return or physical route safety
+is claimed. No production waypoint, PID, drift threshold, task tag or validation
+gate changed. No commit or push was performed by this implementation agent.

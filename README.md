@@ -162,3 +162,5 @@ Heading tolerance and stopped hold are unchanged. See [diagnostics](docs/turn_di
 ## Task5 acceptance
 
 The user accepted the 0.05 rad/s turn-stop version after the cloud route and final clockwise half-turn, with no collision confirmed. Frozen snapshot: `task5`. See [acceptance evidence and limits](docs/task5_acceptance.md).
+
+Experimental opt-in same-process stepping and translation-only return: [scene contract](docs/scenes.md#experimental-same-process-supervised-mode). This does not implement general midroute recovery or a full return to P01.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Scene-aware official entry; validate first, then run one owned noninteractive backend."""
+"""Scene-aware official entry; validate first, then run one owned backend."""
 
 import argparse
 import json
@@ -59,13 +59,20 @@ def parse_args(argv):
     parser.add_argument('--waypoints', type=Path)
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--destination')
+    parser.add_argument(
+        '--supervised',
+        action='store_true',
+        help='Experimental scene2 single actions; enforced laser guard',
+    )
     parser.add_argument('--speed', type=bounded_value(0.01, 0.12))
     parser.add_argument('--turn-speed', type=bounded_value(0.02, 0.60))
     parser.add_argument('--output', type=Path)
     args = parser.parse_args(values)
     if args.scene == 2 and ros_args:
         parser.error('Scene 2 does not accept unchecked ROS overrides')
-    if args.scene == 1 and any((args.destination, args.speed, args.turn_speed, args.output)):
+    if args.scene == 1 and any(
+        (args.destination, args.speed, args.turn_speed, args.output, args.supervised)
+    ):
         parser.error('Destination/speed/output are scene 2 options; scene 1 retains ROS arguments')
     return args, ros_args
 
@@ -131,7 +138,7 @@ def backend_command(args, route_file, ros_args):
         '2',
         '--route-json',
         str(route_file),
-        '--laser-log-only',
+        '--supervised' if getattr(args, 'supervised', False) else '--laser-log-only',
     ]
     for name, value in (
         ('--speed', args.speed),
