@@ -2,9 +2,9 @@ schema: 1
 scene: 2
 frame: P01
 validated: false
-test_until: P12
-source: d2ec797 taught route, P13 fault unresolved. No coordinate changes; full run
-  blocked pending evidence.
+test_until: P15
+source: d2ec797 taught route, P13 fault unresolved. No coordinate changes; P15
+  development testing authorized, not route or obstacle-avoidance acceptance.
 actions:
 - name: P02
   kind: path

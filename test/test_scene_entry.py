@@ -45,6 +45,10 @@ class SceneFiles(unittest.TestCase):
 
     def test_guarded_prefix_and_explicit_validation(self):
         route = scene_route.validate_real(self.real)
+        self.assertIs(route['validated'], False)
+        self.assertEqual(route['test_until'], 'P15')
+        self.assertEqual(len(scene_route.select_real(route, 'P15', True)['actions']), 20)
+        route['test_until'] = 'P12'
         self.assertEqual(scene_route.select_real(route, 'P12', True)['actions'][-1]['name'], 'P12')
         with self.assertRaisesRegex(ValueError, 'not validated'):
             scene_route.select_real(route, 'P15', True)
@@ -82,10 +86,36 @@ class EntryContract(unittest.TestCase):
             return maze_entry.main(args)
 
     def test_dry_run_and_unvalidated_full_route_never_launch(self):
-        with patch.object(maze_entry, 'run_owned') as run:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.object(maze_entry, 'run_owned') as run,
+        ):
+            path = Path(directory) / 'restricted.yaml'
+            data = yaml.safe_load((ROOT / 'waypoints/waypoints_real.yaml').read_text())
+            data['test_until'] = 'P12'
+            path.write_text(yaml.safe_dump(data))
             self.assertEqual(self.quiet_main(['2', '--dry-run']), 0)
-            self.assertEqual(self.quiet_main(['2']), 2)
+            self.assertEqual(self.quiet_main(['2', '--waypoints', str(path)]), 2)
             run.assert_not_called()
+
+    def test_development_full_route_manifest_and_slow_turn_pass_through(self):
+        def fake_backend(command):
+            manifest = Path(command[command.index('--route-json') + 1])
+            payload = json.loads(manifest.read_text())
+            expected = yaml.safe_load((ROOT / 'waypoints/waypoints_real.yaml').read_text())
+            self.assertEqual(payload['actions'], expected['actions'])
+            self.assertEqual(len(payload['actions']), 20)
+            self.assertEqual(payload['actions'][-1]['name'], 'P15')
+            self.assertEqual(float(command[command.index('--turn-speed') + 1]), 0.20)
+            self.assertIn('--laser-log-only', command)
+            return 0
+
+        with (
+            patch.object(maze_entry, 'executable', return_value='/fake/backend'),
+            patch.object(maze_entry, 'run_owned', side_effect=fake_backend) as run,
+        ):
+            self.assertEqual(self.quiet_main(['2', '--turn-speed', '0.20']), 0)
+            run.assert_called_once()
 
     def test_scene2_custom_yaml_used_failure_propagated_and_temp_removed(self):
         with tempfile.TemporaryDirectory() as directory:

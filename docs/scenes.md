@@ -43,12 +43,14 @@ ros2 run pid_maze_solver pid_maze_solver 2 --destination P02 --output /tmp/scene
 backend. When omitted, backend defaults apply. `--output` is the backend session
 JSON/audit destination. Unchecked ROS parameter overrides are rejected for scene 2.
 
-The supplied scene 2 file has `validated: false` and `test_until: P12`. Full scene 2
-execution is therefore rejected. `--destination` selects a prefix and cannot bypass
-that gate. P03_turn aliases P03_after_turn. After actual route and protection
-acceptance, an explicitly reviewed validation-state change can enable the standard
-`ros2 run pid_maze_solver pid_maze_solver 2` full-route entry. Changing this field
-is not itself evidence of acceptance. No final half-turn is added by this frontend.
+The supplied scene 2 file has `validated: false` and `test_until: P15`. The standard
+`ros2 run pid_maze_solver pid_maze_solver 2` entry therefore permits the full route
+for authorized development testing. P13's prior hardware failure remains unresolved;
+the expanded scope is not evidence of route, clearance or obstacle-avoidance acceptance.
+All route points, headings, gains and the backend 4 cm turn-drift limit are unchanged.
+`--destination` selects a prefix and cannot bypass a file's declared test scope.
+P03_turn aliases P03_after_turn. A restricted file with `test_until: P12` still rejects
+P15 execution while unvalidated. No final half-turn is added by this frontend.
 
 ## Backend and exit contract
 
@@ -78,7 +80,7 @@ perform its normal P01 preparation. Do not launch scene 1 and scene 2 together.
 The entry tests cover real file consumption, duplicate/malformed data, changed
 coordinates, route gates, backend exit propagation, cancellation and temporary-file
 cleanup using fake owned processes. Existing C++ tests protect the preserved Task5
-math. Installed dry-runs and rejection of the unvalidated full route do not move
+math. Dry-runs and rejection of a route beyond its declared test scope do not move
 a robot. Backend synthetic-feedback tests and real-robot verification are separate;
 a wrapper build or a successful prefix does not complete Task6.
 ## Experimental same-process supervised mode
@@ -86,7 +88,8 @@ a wrapper build or a successful prefix does not complete Task6.
 `ros2 run pid_maze_solver pid_maze_solver 2 --destination P12 --supervised`
 prepares once and then waits for `next` before every action. This explicit mode
 uses an enforced laser guard and caps linear/angular speed at 0.03 m/s / 0.10 rad/s.
-The approved prefix gate is unchanged; `next` cannot continue beyond P12.
+The manifest is restricted to the selected destination; in this example `next`
+cannot continue beyond P12, even though the supplied file permits development through P15.
 `back_plan` then `back TOKEN` may undo only the last completed translation while
 retaining every bend and original P01. Turns and partial motions cannot be undone.
 `quit`/EOF closes the session; exit 0 is orderly closure, not route completion.

@@ -12,11 +12,12 @@ ros2 run pid_maze_solver pid_maze_solver 2 --dry-run
 ```
 
 Scene 2 defaults to P15 with no terminal half-turn. Its supplied YAML is currently
-`validated: false`, with `test_until: P12`: a normal `... pid_maze_solver 2` request
-is rejected before starting a backend because P13 has an unresolved hardware
-failure. An explicitly selected prefix at or before P12 can be tested when the
-robot session is authorized and ready. This gate is a record of reviewed scope,
-not automatic proof of obstacle clearance. See [scene contracts and checks](docs/scenes.md).
+`validated: false`, with `test_until: P15`: a normal `... pid_maze_solver 2` request
+now permits the complete route for authorized development testing. P13's prior
+hardware failure remains unresolved; extending the test scope does not certify
+the route or obstacle clearance. The points, headings, gains and 4 cm turn-drift
+limit are unchanged. `--destination P12` still selects the tested prefix.
+See [scene contracts and checks](docs/scenes.md).
 
 The Task5 C++ control source, historical tag, and scene 1 motion policy are
 unchanged. Scene 2 does not inherit Task5's 6 cm automatic clearance translation,
@@ -164,3 +165,10 @@ Heading tolerance and stopped hold are unchanged. See [diagnostics](docs/turn_di
 The user accepted the 0.05 rad/s turn-stop version after the cloud route and final clockwise half-turn, with no collision confirmed. Frozen snapshot: `task5`. See [acceptance evidence and limits](docs/task5_acceptance.md).
 
 Experimental opt-in same-process stepping and translation-only return: [scene contract](docs/scenes.md#experimental-same-process-supervised-mode). This does not implement general midroute recovery or a full return to P01.
+
+## Bounded Task6 operations
+
+Use [Task6 operations](docs/task6_operations.md) for the installed `task6_run`
+prepare/preflight/explicit-run workflow, version manifest, fresh P01 requirement,
+recording health, booking cutoff and cleanup checks. It defaults to the P12
+engineering prefix and does not change the existing scene1/scene2 controller policy.
