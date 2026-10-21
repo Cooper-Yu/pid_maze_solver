@@ -83,6 +83,7 @@ class Operation:
         self.started = time.monotonic()
         self.last_health = None
         self.last_growth = None
+        self.phase = 'created'
 
     def cancel(self, *_):
         self.cancelled = True
@@ -96,6 +97,7 @@ class Operation:
             raise RuntimeError('Booking deadline cleanup reserve reached')
 
     def start_evidence(self):
+        self.phase = 'evidence_startup'
         support = Path(self.config['support'])
         seconds = str(min(1800, self.config['max_seconds'] + 90))
         self.recorder = spawn(
@@ -181,6 +183,7 @@ class Operation:
             str(self.config.get('turn_speed', 0.10)),
         ]
         write_json(self.directory / 'motion_command.json', command)
+        self.phase = 'official_runner'
         self.runner = spawn(command, self.directory / 'motion.log')
         while self.runner.poll() is None:
             self.probe.pump()
@@ -227,20 +230,45 @@ class Operation:
                 failures.append('Recorder close not verified: ' + str(error))
         return dict(zero_and_released=zero, evidence=evidence, failures=failures)
 
+    def capture_failure(self, error):
+        """Best-effort pre-cleanup evidence; diagnostic failure must never skip stopping."""
+        evidence = dict(
+            error=error,
+            unix_time=time.time(),
+            phase=self.phase,
+            runner_returncode=self.runner.poll() if self.runner is not None else None,
+        )
+        try:
+            evidence['probe'] = self.probe.diagnostics()
+        except Exception as diagnostic_error:
+            evidence['probe_error'] = str(diagnostic_error)
+        return evidence
+
     def run(self):
         handlers = {sig: signal.signal(sig, self.cancel) for sig in (signal.SIGINT, signal.SIGTERM)}
-        error = None
+        error = diagnostic_error = failure_snapshot = None
         try:
             self.execute()
         except Exception as failure:
             error = str(failure)
+            try:
+                failure_snapshot = self.capture_failure(error)
+            except Exception as capture_error:
+                diagnostic_error = str(capture_error)
         finally:
             cleanup = self.cleanup()
             for sig, handler in handlers.items():
                 signal.signal(sig, handler)
+        # Capture precedes stop, but disk I/O must not delay sending the stop signal.
+        if failure_snapshot is not None:
+            try:
+                write_json(self.directory / 'failure_snapshot.json', failure_snapshot)
+            except Exception as capture_error:
+                diagnostic_error = str(capture_error)
         result = dict(
             success=error is None and not cleanup['failures'],
             error=error,
+            failure_snapshot_error=diagnostic_error,
             cleanup=cleanup,
             elapsed_s=time.monotonic() - self.started,
             destination=self.config['destination'],

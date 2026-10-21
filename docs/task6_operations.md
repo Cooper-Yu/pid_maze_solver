@@ -115,3 +115,18 @@ All cases closed bag metadata and released the mock velocity publisher after
 zero. GID-change and feedback-loss cases rejected trustworthy stopped-feedback
 confirmation as intended. The installed `task6_run prepare` command also ran
 successfully without starting ROS control. Ruff and `git diff --check` passed.
+
+Failure diagnostics (2026-10-22): `failure_snapshot.json` captures cached feedback
+and discovered endpoint identities before cleanup, then writes the captured data
+after cleanup so filesystem I/O cannot postpone the stop signal. It includes
+wrapper phase, wall/ROS/monotonic times, source/receipt ages, feedback counts,
+last command and node/namespace/GID descriptors. `last_check` preserves the exact
+publisher-count rejection even if graph discovery changes during cancellation.
+Correlate its timestamp with `motion.log` and `points.jsonl`; an ops publisher
+error during controller cleanup is not proof of an external teleop or the first
+controller fault. Missing diagnostics are reported by `failure_snapshot_error`
+without replacing the primary error or bypassing cleanup. Limits remain zero
+publishers before motion, at most one while the official runner is active, and
+0.5 seconds for feedback freshness. Fifteen unit cases cover these diagnostics,
+including unchanged admission bounds and capture/write failures. These are local
+unit results, not additional hardware verification.

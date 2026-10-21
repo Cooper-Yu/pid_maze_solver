@@ -42,6 +42,7 @@ class Probe:
         self.node = rclpy.create_node('task6_read_only_preflight')
         self.samples, self.counts, self.failure = {}, {}, None
         self.last_command = None
+        self.last_check = None
         self.buffer = Buffer()
         self.listener = TransformListener(self.buffer, self.node)
         for topic in ODOM:
@@ -112,7 +113,51 @@ class Probe:
             bytes(i.endpoint_gid).hex() for i in self.node.get_publishers_info_by_topic(topic)
         )
 
+    def endpoints(self, topic):
+        """Describe the currently discovered endpoints without spinning or waiting."""
+        return sorted(
+            (
+                dict(gid=bytes(i.endpoint_gid).hex(), node=i.node_name, namespace=i.node_namespace)
+                for i in self.node.get_publishers_info_by_topic(topic)
+            ),
+            key=lambda item: item['gid'],
+        )
+
+    def diagnostics(self):
+        """Capture cached feedback before cleanup; this never validates or permits motion."""
+        now_ros = self.node.get_clock().now().nanoseconds / 1e9
+        now_mono = time.monotonic()
+        return dict(
+            unix_time=time.time(),
+            ros_time=now_ros,
+            monotonic=now_mono,
+            topics={
+                topic: dict(
+                    sample=self.samples.get(topic),
+                    count=self.counts.get(topic, 0),
+                    source_age_s=now_ros - self.samples[topic]['stamp']
+                    if topic in self.samples
+                    else None,
+                    receipt_age_s=now_mono - self.samples[topic]['receipt']
+                    if topic in self.samples
+                    else None,
+                    publishers=self.endpoints(topic),
+                )
+                for topic in (*ODOM, SCAN)
+            },
+            cmd_endpoints=self.endpoints('/cmd_vel'),
+            last_command=self.last_command,
+            latched_failure=self.failure,
+            last_check=getattr(self, 'last_check', None),
+        )
+
     def snapshot(self, stopped=True, expected=None):
+        self.last_check = dict(
+            stopped=stopped,
+            cmd_limit=0 if stopped else 1,
+            unix_time=time.time(),
+            expected_gids=expected,
+        )
         if self.failure:
             raise RuntimeError(self.failure)
         validate_feedback(
@@ -123,9 +168,14 @@ class Probe:
             expected is not None and gids != expected
         ):
             raise RuntimeError('Odometry publisher identity/count changed')
-        count = len(self.identities('/cmd_vel'))
+        endpoints = self.endpoints('/cmd_vel')
+        count = len(endpoints)
+        self.last_check.update(cmd_count=count, cmd_endpoints=endpoints)
         if count > (0 if stopped else 1):
-            raise RuntimeError('Unexpected cmd_vel publisher; release teleop/controller')
+            raise RuntimeError(
+                'Unexpected cmd_vel publisher; release teleop/controller: '
+                f'stopped={stopped} count={count} endpoints={endpoints}'
+            )
         transform = self.buffer.lookup_transform(
             'base_link', self.samples[SCAN]['frame'], self.ros.time.Time()
         )

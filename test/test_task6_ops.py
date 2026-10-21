@@ -148,6 +148,59 @@ class FeedbackTest(unittest.TestCase):
         with patch('task6_preflight.time.monotonic', return_value=10.1):
             self.assertTrue(probe.wait_zero(expected, timeout=0.1))
 
+    def diagnostic_probe(self):
+        probe = Probe.__new__(Probe)
+        probe.samples, probe.counts, probe.failure = self.samples(), {SCAN: 7}, None
+        probe.last_command = None
+        probe.node = Mock()
+        probe.node.get_clock.return_value.now.return_value.nanoseconds = 100_100_000_000
+        probe.node.get_publishers_info_by_topic.return_value = []
+        probe.identities = lambda _: ['original']
+        probe.buffer = Mock()
+        transform = probe.buffer.lookup_transform.return_value.transform
+        transform.translation = SimpleNamespace(x=0, y=0, z=0)
+        transform.rotation = SimpleNamespace(x=0, y=0, z=0, w=1)
+        probe.ros = Mock()
+        return probe
+
+    def test_publisher_bounds_and_exact_rejected_endpoints(self):
+        probe = self.diagnostic_probe()
+        endpoints = [
+            SimpleNamespace(endpoint_gid=bytes([i]), node_name=f'node{i}', node_namespace='/')
+            for i in (1, 2)
+        ]
+        with patch('task6_preflight.time.monotonic', return_value=10.1):
+            for stopped, count, allowed in (
+                (True, 0, True),
+                (True, 1, False),
+                (False, 1, True),
+                (False, 2, False),
+            ):
+                probe.node.get_publishers_info_by_topic.return_value = endpoints[:count]
+                with self.subTest(stopped=stopped, count=count):
+                    if allowed:
+                        self.assertEqual(probe.snapshot(stopped=stopped)['cmd_publishers'], count)
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, f'count={count}'):
+                            probe.snapshot(stopped=stopped)
+                        self.assertEqual(probe.last_check['cmd_count'], count)
+            # Graph may change before capture: preserve the exact rejected observation too.
+            probe.node.get_publishers_info_by_topic.return_value = []
+            evidence = probe.diagnostics()
+            self.assertEqual(len(evidence['last_check']['cmd_endpoints']), 2)
+            self.assertEqual(evidence['last_check']['cmd_endpoints'][1]['gid'], '02')
+            self.assertEqual(evidence['cmd_endpoints'], [])
+            self.assertAlmostEqual(evidence['topics'][SCAN]['source_age_s'], 0.1)
+            self.assertAlmostEqual(evidence['topics'][SCAN]['receipt_age_s'], 0.1)
+
+    def test_stale_source_diagnostic_keeps_failed_sample(self):
+        probe = self.diagnostic_probe()
+        probe.samples[SCAN]['stamp'] = 99
+        with patch('task6_preflight.time.monotonic', return_value=10.1):
+            with self.assertRaisesRegex(RuntimeError, 'source timestamp'):
+                probe.snapshot(stopped=False)
+            self.assertAlmostEqual(probe.diagnostics()['topics'][SCAN]['source_age_s'], 1.1)
+
     def test_recorder_must_grow_and_remain_fresh(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
@@ -213,6 +266,62 @@ class LifetimeTest(unittest.TestCase):
                 operation.execute = Mock(side_effect=RuntimeError('Cancelled'))
                 self.assertEqual(operation.run(), 2)
                 self.assertFalse(json.loads((root / 'result.json').read_text())['success'])
+
+    def test_failure_snapshot_precedes_cleanup_and_keeps_first_error(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            probe = Mock()
+            probe.diagnostics.return_value = {'cmd_endpoints': ['controller', 'stopper']}
+            operation = Operation(root, self.config(), probe, {})
+            operation.phase = 'official_runner'
+            operation.execute = Mock(side_effect=RuntimeError('original fault'))
+
+            def cleanup():
+                probe.diagnostics.assert_called_once()
+                self.assertFalse((root / 'failure_snapshot.json').exists())
+                probe.diagnostics.return_value = {'cmd_endpoints': []}
+                return dict(failures=[], zero_and_released=True)
+
+            operation.cleanup = cleanup
+            self.assertEqual(operation.run(), 2)
+            saved = json.loads((root / 'failure_snapshot.json').read_text())
+            self.assertEqual(saved['error'], 'original fault')
+            self.assertEqual(saved['phase'], 'official_runner')
+            self.assertEqual(len(saved['probe']['cmd_endpoints']), 2)
+            self.assertEqual(
+                json.loads((root / 'result.json').read_text())['error'], 'original fault'
+            )
+
+    def test_diagnostic_capture_failure_never_skips_cleanup(self):
+        with tempfile.TemporaryDirectory() as folder:
+            operation = Operation(Path(folder), self.config(), Mock(), {})
+            operation.execute = Mock(side_effect=RuntimeError('primary'))
+            operation.capture_failure = Mock(side_effect=OSError('disk failure'))
+            operation.cleanup = Mock(return_value=dict(failures=[], zero_and_released=True))
+            self.assertEqual(operation.run(), 2)
+            operation.cleanup.assert_called_once()
+            result = json.loads((Path(folder) / 'result.json').read_text())
+            self.assertEqual(result['error'], 'primary')
+            self.assertEqual(result['failure_snapshot_error'], 'disk failure')
+
+    def test_diagnostic_write_failure_preserves_primary_result(self):
+        with tempfile.TemporaryDirectory() as folder:
+            operation = Operation(Path(folder), self.config(), Mock(), {})
+            operation.execute = Mock(side_effect=RuntimeError('primary'))
+            operation.probe.diagnostics.return_value = {}
+            operation.cleanup = Mock(return_value=dict(failures=[], zero_and_released=True))
+
+            def write(path, value):
+                operation.cleanup.assert_called_once()
+                if path.name == 'failure_snapshot.json':
+                    raise OSError('snapshot disk failure')
+                write_json(path, value)
+
+            with patch('task6_ops_runtime.write_json', side_effect=write):
+                self.assertEqual(operation.run(), 2)
+            result = json.loads((Path(folder) / 'result.json').read_text())
+            self.assertEqual(result['error'], 'primary')
+            self.assertEqual(result['failure_snapshot_error'], 'snapshot disk failure')
 
     def test_missing_final_zero_or_metadata_fails_cleanup(self):
         with tempfile.TemporaryDirectory() as folder:
