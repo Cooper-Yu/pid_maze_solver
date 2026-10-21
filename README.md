@@ -1,4 +1,31 @@
-# PID Maze Solver — Task5
+# PID Maze Solver — scene entry
+
+The official executable now selects a scene: `1` retains the Task5 C++ controller;
+`2` loads the fixed-P01 Task6 action file and delegates to the noninteractive
+`distance_controller/task6_route_runner` backend. Omitting the scene retains `1`.
+The scene files are installed under `share/pid_maze_solver/waypoints/` and are
+actually used to configure execution, not just checked for existence.
+
+```bash
+ros2 run pid_maze_solver pid_maze_solver 1 --dry-run
+ros2 run pid_maze_solver pid_maze_solver 2 --dry-run
+```
+
+Scene 2 defaults to P15 with no terminal half-turn. Its supplied YAML is currently
+`validated: false`, with `test_until: P12`: a normal `... pid_maze_solver 2` request
+is rejected before starting a backend because P13 has an unresolved hardware
+failure. An explicitly selected prefix at or before P12 can be tested when the
+robot session is authorized and ready. This gate is a record of reviewed scope,
+not automatic proof of obstacle clearance. See [scene contracts and checks](docs/scenes.md).
+
+The Task5 C++ control source, historical tag, and scene 1 motion policy are
+unchanged. Scene 2 does not inherit Task5's 6 cm automatic clearance translation,
+self-return mask, 15 mm position tolerance, or default final half-turn. Its shared
+backend retains the existing preparation, motion guards and audit stream.
+The current scene 2 backend explicitly uses laser observation only; this entry
+work does not complete Task6 obstacle-avoidance, repeatability, or hardware acceptance.
+
+## Scene 1 / Task5 behavior
 
 A simulation-first holonomic ROSBot XL controller. The default route is a
 sequence of relative turns and forward/left distances in `motion.hpp`, configurable

@@ -21,3 +21,8 @@ The terminal half-turn regression covers branch-cut crossing, initial opposite-d
 
 
 In an isolated domain, run `ROS_DOMAIN_ID=198 ROS_LOCALHOST_ONLY=1 python3 test/turn_diagnostics.py` with the ROS overlay sourced to verify diagnostic gates and partial-route termination.
+
+Scene frontend checks: `python3 test/test_scene_entry.py` (also registered in CTest).
+These tests use pure file validation and owned fake Python processes; they do not
+start ROS controllers. See [scene contracts](../docs/scenes.md). Full scene 2 remains
+gated by its route validation status; dry-run success is not hardware acceptance.

@@ -77,3 +77,70 @@ The final YAML matches the C++ route defaults; the parity check passes and rejec
 ## CP18-C031 terminal clockwise turn
 
 Full default route plus terminal action completed in 94.825 s, exit 0, wall contact points 0. Terminal turn 6.640 s, error -0.006940 rad, all linear commands zero. Earlier P10 had four short obstacle holds; terminal action had none. See [full evidence](final_turn.md). Fifteen unit tests and three runtime guard fixtures passed; cloud acceptance pending.
+
+## 2026-10-22 Scene entry and file contract
+
+Ubuntu-22.04 / ROS2 Humble, base HEAD b2e47ab; task5 still dereferences to
+75df8bb488dd97eadc513d16fb827c593e488a51. The C++ control source was not edited.
+The public scene frontend, strict YAML loader, two installed scene files and
+internal legacy executable name were added. Scene 2 preserves the d2ec797 route
+and blocks the unresolved full route with validated=false / test_until=P12.
+
+Commands run locally:
+
+- `python3 test/test_scene_entry.py`: 10 tests passed, including fake child exit 7,
+  SIGINT cancellation returning 130, actual custom-YAML payload and temp cleanup.
+- `ruff check tools/maze_entry.py tools/scene_route.py test/test_scene_entry.py`:
+  passed; Ruff formatting applied only to those new Python files.
+- `bash /tmp/verify_pid_scenes.bash`: Humble colcon build and CTest passed
+  (15 existing GoogleTests plus 10 Python contract tests); installed scene 1/2
+  dry-runs succeeded; installed scene 2 full execution returned 2 before a backend
+  because the route remains unvalidated. `git diff --check` passed.
+
+The first verification shell re-sourced the overlay with nounset enabled and
+stopped at COLCON_TRACE before tests; the shell was corrected to disable nounset
+around sourcing. A scene-1 YAML edit was caught by parser tests and regenerated
+structurally before verification. Neither issue changed the C++ controller.
+
+No robot, ROS motion node, deployment or push was performed in this frontend
+verification. The separate distance_controller backend is being integrated and
+must pass its own synthetic-feedback/cleanup checks before this can be treated as
+an operational end-to-end route. Laser observation only is explicit; no wall
+avoidance, P13 repair, repeated full route, final-turn or course PASS is claimed.
+## 2026-10-22 Installed frontend/backend integration
+
+`bash /tmp/pid_scene_integration.bash` ran the actual installed
+`ros2 run pid_maze_solver pid_maze_solver 2 --waypoints SCENE.yaml --destination P04`
+entry, its generated manifest, and the installed distance_controller backend.
+ROS_LOCALHOST_ONLY=1 and domain 191 isolated a synthetic odom/raycast-scan fixture;
+no hardware or external ROS network was used. The temporary complete scene YAML
+had short P02/P03 legs, a P03 turn of .15 rad, and a bent P04 path. Production
+waypoints_real.yaml and its validated=false/test_until=P12 state were unchanged.
+
+Evidence root: `/tmp/pid_scene_integration/1792613955278106284/`.
+Each case contains runtime.log, points.jsonl, and the temporary input scene.yaml.
+
+| Case | Observed process result | Verified terminal behavior |
+| --- | --- | --- |
+| success | 0 | precise P01 handoff, P01/P02/P03/P03_after_turn/P04 records, route_completed |
+| stale | 2 | route_failed: Odom stale during wall action; no completion |
+| drift | 2 | route_failed: Turn center drift exceeds 4 cm; no completion |
+| cancel | 130 | SIGINT forwarded, route_failed cancellation; no completion |
+| prepare_cancel | -15 from the outer ros2 launcher | SIGTERM during preparation, route_failed cancellation; no completion |
+
+All five cases checked the final command was zero when commands existed, no
+remaining /cmd_vel publisher, and release of the owned controller lock. A signal
+result of -15 is subprocess's representation of launcher termination by SIGTERM,
+not successful route completion. Success P04 was x=.0791804440, y=.0250763229 m,
+yaw=8.4887537 deg against (.08,.03,.15 rad), within the existing 5 mm/.01 rad limits.
+
+The backend model source/installed SHA256 for this run was
+`fad35ab2c4572837d139cd17afd581153f530dc95682016f8ad82bf7c141aacf`.
+Its reviewed reconnect repair subdivides only the changed first edge when needed;
+all original points[1:] remain a suffix. This preserves the 5 cm representation
+bound without straightening a supplied bend or relaxing the 2 cm/1 deg reconnect
+and 4 cm turn-center guards. The frontend source required no change for integration.
+
+This establishes the installed execution/exit/cleanup chain under synthetic
+feedback. It does not validate P13 geometry, active laser obstacle avoidance,
+physical repeatability, or full Task6 acceptance.
