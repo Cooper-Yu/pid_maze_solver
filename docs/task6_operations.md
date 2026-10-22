@@ -184,3 +184,17 @@ A continuously retriggered guard callback exited the drain after 3 calls; measur
 drain times across the cases were 2.026/1.873/2.103 ms. These small overruns include
 completion of an already started callback, not an added waiting allowance.
 Synthetic localhost checks do not prove cloud scheduling or filtered availability.
+
+## Observation-only scan tolerance (2026-10-22)
+
+The user explicitly selected a 1.0-second scan source/receipt limit for the
+observation-only official run. Only the running `Operation.execute` monitor uses
+this exception. Default preflight, evidence startup and final stopped checks keep
+0.5 seconds; both odometry topics always keep 0.5 seconds. Invalid/future stamps,
+missing scan, invalid frames/ranges, identity changes and prolonged loss still
+reject motion. Diagnostics record both effective scan and odometry limits.
+The backend enables matching 1.0-second geometry freshness only after precise
+P01 preparation, including the observation-only terminal half-turn. Enforced
+supervised guards and preparation remain strict. This is not obstacle avoidance.
+Full success requires canonical destination P15 and explicit completed
+P15_after_turn evidence; preparation accepts either destination spelling.

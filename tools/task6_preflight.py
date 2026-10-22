@@ -8,9 +8,19 @@ ODOM = ('/odometry/filtered', '/rosbot_xl_base_controller/odom')
 SCAN = '/scan_filtered'
 PUMP_DRAIN_MAX_CALLS = 16
 PUMP_DRAIN_BUDGET_S = 0.002
+OBSERVATION_SCAN_TIMEOUT = 1.0
 
 
-def validate_feedback(samples, now_ros, now_mono, stopped, *, stopped_scan_wait=False):
+def validate_feedback(
+    samples, now_ros, now_mono, stopped, *, stopped_scan_wait=False, scan_timeout=0.5
+):
+    if (
+        isinstance(scan_timeout, bool)
+        or not isinstance(scan_timeout, (int, float))
+        or not math.isfinite(scan_timeout)
+        or not 0.5 <= scan_timeout <= OBSERVATION_SCAN_TIMEOUT
+    ):
+        raise ValueError('scan_timeout must be finite within 0.5..1.0 seconds')
     if stopped_scan_wait and not stopped:
         raise ValueError('Scan waiting requires stopped feedback')
     scan_fresh = True
@@ -24,9 +34,10 @@ def validate_feedback(samples, now_ros, now_mono, stopped, *, stopped_scan_wait=
                 raise RuntimeError('Insufficient finite scan returns')
             scan_fresh = age <= 0.5 and now_mono - item['receipt'] <= 0.5
             continue
-        if item is None or now_mono - item['receipt'] > 0.5:
+        timeout = scan_timeout if topic == SCAN else 0.5
+        if item is None or now_mono - item['receipt'] > timeout:
             raise RuntimeError(f'Missing/stale receipt: {topic}')
-        if not -0.1 <= now_ros - item['stamp'] <= 0.5:
+        if not -0.1 <= now_ros - item['stamp'] <= timeout:
             raise RuntimeError(f'Missing/stale source timestamp: {topic}')
         if topic in ODOM:
             if item['frame'] != 'odom' or item['child'] != 'base_link':
@@ -199,11 +210,13 @@ class Probe:
             last_pump=getattr(self, 'last_pump', None),
         )
 
-    def snapshot(self, stopped=True, expected=None, *, stopped_scan_wait=False):
+    def snapshot(self, stopped=True, expected=None, *, stopped_scan_wait=False, scan_timeout=0.5):
         self.last_check = dict(
             stopped=stopped,
             cmd_limit=0 if stopped else 1,
             stopped_scan_wait=stopped_scan_wait,
+            scan_timeout=0.5 if stopped_scan_wait else scan_timeout,
+            odom_timeout=0.5,
             unix_time=time.time(),
             expected_gids=expected,
         )
@@ -215,6 +228,7 @@ class Probe:
             time.monotonic(),
             stopped,
             stopped_scan_wait=stopped_scan_wait,
+            scan_timeout=scan_timeout,
         )
         gids = {topic: self.identities(topic) for topic in ODOM}
         if any(len(value) != 1 for value in gids.values()) or (

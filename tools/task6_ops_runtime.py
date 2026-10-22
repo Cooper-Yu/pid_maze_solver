@@ -8,7 +8,7 @@ import subprocess
 import sys
 import time
 
-from task6_preflight import ODOM, SCAN
+from task6_preflight import OBSERVATION_SCAN_TIMEOUT, ODOM, SCAN
 
 EVIDENCE_RATE = (*ODOM, SCAN, '/image_raw/compressed')
 EVIDENCE_ONCE = ('/tf_static',)
@@ -226,7 +226,15 @@ class Operation:
         while self.runner.poll() is None:
             self.probe.pump()
             self.check_limits()
-            self.probe.snapshot(stopped=False, expected=self.identities)
+            self.probe.snapshot(
+                stopped=False,
+                expected=self.identities,
+                scan_timeout=(
+                    OBSERVATION_SCAN_TIMEOUT
+                    if self.config.get('laser_policy') == 'observation_only'
+                    else 0.5
+                ),
+            )
             self.check_recording()
         if self.runner.returncode != 0:
             raise RuntimeError(f'Official scene2 exited {self.runner.returncode}')
