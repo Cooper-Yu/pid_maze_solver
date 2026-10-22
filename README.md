@@ -212,3 +212,6 @@ use an isolated Gazebo partition. The simulator has a 3600 wall-second deadline.
 the route retains feedback-loss and progress protections. Wall start/end timestamps and
 odom stamps separate cloud elapsed time from simulation time. These limits are test budgets,
 not expected route durations. Start a fresh world at P01 before the forward/reverse pair.
+
+Task7 final cloud functional acceptance (including P01 counterclockwise half-turn):
+[validation](docs/task7_cloud_validation.md) and [requirements](docs/task7_requirements.md).
