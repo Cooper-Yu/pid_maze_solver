@@ -212,11 +212,8 @@ class ReturnOperation(Operation):
                     raise RuntimeError(f'Completed return child exited {code}')
                 return
 
-    def execute(self):
-        import subprocess
-
-        self.start_evidence()
-        command = [
+    def build_command(self):
+        return [
             str(self.library / 'route_return_runner'),
             '--source',
             str(self.source_path),
@@ -228,6 +225,12 @@ class ReturnOperation(Operation):
             str(self.directory / 'return_points.json'),
             '--laser-log-only',
         ]
+
+    def execute(self):
+        import subprocess
+
+        self.start_evidence()
+        command = self.build_command()
         write_json(self.directory / 'motion_command.json', command)
         fifo_path = self.directory / 'control.fifo'
         os.mkfifo(fifo_path, 0o600)
