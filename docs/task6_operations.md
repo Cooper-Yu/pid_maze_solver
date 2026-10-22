@@ -281,3 +281,33 @@ Regression: `test_task6_evidence_startup.py` plus `test_task6_ops.py`; live loca
 DDS fixture `ROS_DOMAIN_ID=195 ROS_LOCALHOST_ONLY=1 python3
  test/verify_task6_startup_feedback.py recover` (also `timeout` and `cancel`).
 The live fixture asserts no `/cmd_vel` messages or publishers in all cases.
+### P10 corner-clearance candidate after run 171305
+
+Run `feedback_pause_20261022_171305` reached P10 within about 2.6 mm of the
+configured endpoint, then stopped on the original 4 cm turn-center drift guard
+at about 35 degrees of clockwise rotation. The operator suspected wall contact;
+a single camera frame does not establish its cause. A closed-bag scan 81 ms before
+the P10 pose record fitted the front wall at 129.1 mm body clearance. Side and rear
+single-wall fits had no dominant consensus; this is unavailable geometry, not
+proof of free space.
+
+A read-only comparison of those observed points against the chassis/wheel rectangle
+union during a clockwise quarter-turn found: front6/right6 cm gave only 1.1 mm
+minimum model gap; front6/right8 gave 20.7 mm; front6/right10 gave 20.1 mm.
+Front3/right8 and front3/right10 gave only 9.3 and 11.1 mm respectively. The
+unshifted rotation gave -40.8 mm; the unshifted static model gap was already
+-3.6 mm. These are counterfactual observed-point diagnostics, not certified physical
+clearances: unseen space, model/mount errors and actual center drift remain unknown.
+No swept-envelope gate or obstacle-policy change is introduced.
+
+Select front6/right8 cm relative to P10's existing -pi/2 heading. In fixed P01
+axes the new P10 is (1.2749013479064715, -1.9655925989094274), a delta of
+(-0.08,-0.06) m from the previous candidate. Preserve every existing P10 approach
+point, append three <=3.34 cm diagonal intervals, then turn. This keeps the earlier
+P09 approach instead of spreading the extra right shift through its narrow section.
+Reinterpolate P10->P11 at <=5 cm spacing (eight points); P09, P11's endpoint, every
+other action and all headings remain unchanged. Path tracking can round the local
+bend; the preserved approach points are nominal geometry, not an exact-stop claim.
+The route remains validated:false and full-route hardware repeatability is pending.
+Retain all speeds, feedback pauses, final tolerances, cancellation and 4 cm guard.
+Regenerate Task8 from the final accepted forward geometry later.
