@@ -214,3 +214,46 @@ turning; it is a hardware-unverified candidate, not a confirmed collision repair
 All speed, scan policy and 4cm drift limits remain. Restart near verified P01;
 no partial-turn resume or old odom reference. Task8 geometry must be regenerated
 from the final accepted forward route before it can be integrated for execution.
+## Owner-side feedback pause (2026-10-23)
+
+After strict preparation, the observation-only route now binds both filtered and
+raw odometry identities. It proactively holds zero at 0.35s odometry or 0.8s scan
+age, before the existing outer 0.5s/1s movement admission checks. A pause lasts at
+most 5s, with at most 10s cumulative per route, and never extends action deadlines.
+The backend alone controls zero and release. Recovery requires both odometry
+streams to provide at least three advancing, fresh, stopped samples spanning
+0.3s, fresh scan/TF, unchanged identities/frames, and <=4cm pause-anchor drift.
+The same fixed target/path and original turn center are retained; PID, limiter
+and settling history reset. Invalid data, clock/pose jumps, competing publishers,
+cancellation and exhausted budgets stop the run. This is not obstacle avoidance.
+
+C++ precise initialization separately uses the same 5s bounded zero-hold for
+scan/filtered-odom interruptions. It requires fresh stopped feedback before
+reacquiring wall alignment/position, discards interrupted micro-targets, and
+preserves final 5mm/0.5deg, travel, total60s and stage deadlines. The supervisor
+still checks both odometry identities; raw-only initialization outages without
+an owner hold remain strict failures. Preflight/final-stop admission is unchanged.
+
+The read-only supervisor accepts old cached samples only after an explicit
+`feedback_pause_started` event or initialization `FEEDBACK_RECOVERING` marker,
+plus actual zero-command acknowledgement and unchanged command ownership.
+`feedback_wait.jsonl` records observed holds. No hold event means strict previous
+freshness, even with a long zero-command history. Recording health remains
+required; feedback count growth may stall only during an acknowledged hold.
+Initialization recovery logs and route pause events are retained in motion.log
+and points.jsonl. Full-run completion still requires all21 actions including
+P15_after_turn, successful cleanup and closed recording metadata.
+
+Local isolated ROS fixtures verify temporary outage, zero hold, recovery,
+identity changes, timeout and cancellation; joint owner/supervisor fixtures also
+exercise the acknowledgement. Hardware validation remains pending, including
+same-version three consecutive complete runs. The P10 forward2cm candidate is
+unchanged. Task7 tag and Task8 candidate are unaffected.
+Cooperative deployment shortcut: after pulling and reviewing both expected
+commits, run `bash src/pid_maze_solver/tools/task6_cooperative_run.bash DISTANCE_SHA PID_SHA`.
+It verifies the pinned versions, builds both packages, creates a new run, performs
+preflight, then uses the already-confirmed physical P01. It has a 600s operation
+limit and an explicit UTC deadline twenty minutes from invocation; the existing
+wrapper reserves cleanup time. Invoke only after teleop is released. The EXIT
+trap prints the run path, result and final controller lines; it creates no extra
+velocity publisher. This shortcut does not return the robot or resume old odom.

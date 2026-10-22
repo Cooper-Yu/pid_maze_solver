@@ -9,6 +9,7 @@ import sys
 import time
 
 from task6_preflight import OBSERVATION_SCAN_TIMEOUT, ODOM, SCAN
+from task6_feedback_pause import SupervisorPause
 
 EVIDENCE_RATE = (*ODOM, SCAN, '/image_raw/compressed')
 EVIDENCE_ONCE = ('/tf_static',)
@@ -194,7 +195,12 @@ class Operation:
         self.require_evidence_alive()
         session, health = recorder_health(self.directory / 'evidence')
         if health['unix_time'] != self.last_health['unix_time']:
-            recorder_health(self.directory / 'evidence', self.last_health['message_counts'])
+            previous = (
+                None
+                if getattr(self, 'feedback_waiting', False)
+                else self.last_health['message_counts']
+            )
+            recorder_health(self.directory / 'evidence', previous)
             self.last_health, self.last_growth = health, time.monotonic()
         if time.monotonic() - self.last_growth > 8:
             raise RuntimeError('Recorder growth timeout')
@@ -223,18 +229,20 @@ class Operation:
         self.check_limits()
         self.probe.snapshot(stopped=True, expected=self.identities)
         self.runner = spawn(command, self.directory / 'motion.log')
+        feedback_pause = SupervisorPause(self.directory)
         while self.runner.poll() is None:
             self.probe.pump()
             self.check_limits()
-            self.probe.snapshot(
-                stopped=False,
-                expected=self.identities,
+            feedback_pause.observe(
+                self.probe,
+                self.identities,
                 scan_timeout=(
                     OBSERVATION_SCAN_TIMEOUT
                     if self.config.get('laser_policy') == 'observation_only'
                     else 0.5
                 ),
             )
+            self.feedback_waiting = feedback_pause.acknowledged
             self.check_recording()
         if self.runner.returncode != 0:
             raise RuntimeError(f'Official scene2 exited {self.runner.returncode}')

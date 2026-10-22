@@ -210,26 +210,45 @@ class Probe:
             last_pump=getattr(self, 'last_pump', None),
         )
 
-    def snapshot(self, stopped=True, expected=None, *, stopped_scan_wait=False, scan_timeout=0.5):
+    def snapshot(
+        self,
+        stopped=True,
+        expected=None,
+        *,
+        stopped_scan_wait=False,
+        scan_timeout=0.5,
+        _feedback_paused=False,
+    ):
         self.last_check = dict(
             stopped=stopped,
             cmd_limit=0 if stopped else 1,
             stopped_scan_wait=stopped_scan_wait,
             scan_timeout=0.5 if stopped_scan_wait else scan_timeout,
             odom_timeout=0.5,
+            feedback_paused=_feedback_paused,
             unix_time=time.time(),
             expected_gids=expected,
         )
         if self.failure:
             raise RuntimeError(self.failure)
-        scan_fresh = validate_feedback(
-            self.samples,
-            self.node.get_clock().now().nanoseconds / 1e9,
-            time.monotonic(),
-            stopped,
-            stopped_scan_wait=stopped_scan_wait,
-            scan_timeout=scan_timeout,
-        )
+        if _feedback_paused:
+            from task6_feedback_pause import validate_paused_feedback
+
+            scan_fresh = validate_paused_feedback(
+                self.samples,
+                self.node.get_clock().now().nanoseconds / 1e9,
+                time.monotonic(),
+                scan_timeout,
+            )
+        else:
+            scan_fresh = validate_feedback(
+                self.samples,
+                self.node.get_clock().now().nanoseconds / 1e9,
+                time.monotonic(),
+                stopped,
+                stopped_scan_wait=stopped_scan_wait,
+                scan_timeout=scan_timeout,
+            )
         gids = {topic: self.identities(topic) for topic in ODOM}
         if any(len(value) != 1 for value in gids.values()) or (
             expected is not None and gids != expected
@@ -260,6 +279,12 @@ class Probe:
             cmd_observed_at=observed_at,
             last_command=self.last_command,
             laser_to_base=dict(translation=[t.x, t.y, t.z], quaternion=[q.x, q.y, q.z, q.w]),
+        )
+
+    def paused_snapshot(self, expected, scan_timeout):
+        """Owner-acknowledged HOLD only; never a motion-ready or preflight result."""
+        return self.snapshot(
+            stopped=False, expected=expected, scan_timeout=scan_timeout, _feedback_paused=True
         )
 
     def ready(self, timeout=8):
