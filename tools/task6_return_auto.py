@@ -7,7 +7,7 @@ import json
 import math
 import time
 
-from scene_route import ACTION_NAMES, load_scene, select_real
+from scene_route import ACTION_NAMES, load_scene
 from task6_ops import digest
 from task6_preflight import ODOM, validate_feedback
 
@@ -27,7 +27,11 @@ def validate_full_route(config, source, path, rows):
         or source_digest(path) != source.source_hash
     ):
         raise ValueError('Automatic return source/route hash changed')
-    selected = select_real(load_scene(config['waypoints'], 2), 'P15', execute=True)
+    # Preserve historical path-only return evidence; the new terminal contract
+    # does not authorize automatic reversal of an additional rotation.
+    selected = load_scene(config['waypoints'], 2)
+    if not selected['validated'] and selected['test_until'] != 'P15':
+        raise ValueError('Automatic return requires the declared complete P15 test scope')
     manifests = [r['actions'] for r in rows if r.get('event') == 'route_started']
     normalized = [
         [{k: v for k, v in a.items() if not (k == 'points' and not v)} for a in actions]

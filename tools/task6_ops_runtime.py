@@ -239,6 +239,14 @@ class Operation:
             or rows[-1].get('destination') != self.config['destination']
         ):
             raise RuntimeError('No matching route_completed evidence')
+        if self.config['destination'] == 'P15' and (
+            rows[-1].get('final_action') != 'P15_after_turn'
+            or not any(
+                row.get('event') == 'route_action_completed' and row.get('name') == 'P15_after_turn'
+                for row in rows[:-1]
+            )
+        ):
+            raise RuntimeError('No completed P15_after_turn terminal evidence')
 
     def verify_final_stop(self):
         zero = self.probe.wait_zero(self.identities) if self.runner is not None else True

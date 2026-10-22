@@ -3,8 +3,8 @@ scene: 2
 frame: P01
 validated: false
 test_until: P15
-source: d2ec797 taught route, P13 fault unresolved. No coordinate changes; P15
-  development testing authorized, not route or obstacle-avoidance acceptance.
+source: d2ec797 taught path, explicit Task6 left 180-degree terminal turn at P15.
+  P15 development testing includes terminal turn; formal avoidance acceptance remains false.
 actions:
 - name: P02
   kind: path
@@ -422,3 +422,6 @@ actions:
     - -0.5613582083696462
   - - 0.02899960878708014
     - -0.5596575672149936
+- name: P15_after_turn
+  kind: turn
+  heading_rad: 0.0

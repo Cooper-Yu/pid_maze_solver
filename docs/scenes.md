@@ -16,7 +16,7 @@ speed, acceleration and hold are intentionally left to the unchanged C++ default
 so an existing fixed_points override does not inherit motion_steps-only defaults.
 The provided relative-step values match `config/motion_route.yaml`.
 
-Scene 2 reads `waypoints/waypoints_real.yaml`: all 20 path/turn actions through P15,
+Scene 2 reads `waypoints/waypoints_real.yaml`: all 21 path/turn actions through P15,
 with points in the fixed P01 frame and headings relative to P01's yaw. Explicit
 turn actions separate heading changes. The current coordinates reproduce the
 reviewed d2ec797 teaching route; P13, P14, and P15 have not been shifted by this work.
@@ -50,7 +50,19 @@ the expanded scope is not evidence of route, clearance or obstacle-avoidance acc
 All route points, headings, gains and the backend 4 cm turn-drift limit are unchanged.
 `--destination` selects a prefix and cannot bypass a file's declared test scope.
 P03_turn aliases P03_after_turn. A restricted file with `test_until: P12` still rejects
-P15 execution while unvalidated. No final half-turn is added by this frontend.
+P15 execution while unvalidated. `--destination P15` includes the explicit final
+`P15_after_turn` action: a left/counterclockwise 180-degree turn from the P15
+path heading (-pi) to heading 0.0. Shorter prefixes are unchanged. Legacy 20-action
+files remain readable for shorter prefixes, but full P15 selection rejects them
+until that terminal action is explicitly added; no motion permission is inferred.
+For the new manifest, `test_until: P15` includes this explicit terminal action.
+Operations success for P15 requires its `route_action_completed` evidence and
+`route_completed.final_action: P15_after_turn`. Prior runs ending at the P15 path
+are path-only evidence and do not satisfy this terminal contract. This change
+does not establish formal obstacle-avoidance acceptance or a Task6 tag.
+The existing automatic-return adapter remains limited to historical 20-action
+path-only evidence; the new terminal rotation has not been accepted for automatic
+return admission.
 
 ## Backend and exit contract
 

@@ -177,3 +177,33 @@ The guard's strict missing-ray restriction is unchanged. No turn undo, partial
 recovery, old-session adoption, P12-to-P01 full return or physical route safety
 is claimed. No production waypoint, PID, drift threshold, task tag or validation
 gate changed. No commit or push was performed by this implementation agent.
+
+## 2026-10-22 Task6 explicit P15 terminal contract (local only)
+
+The default real-scene manifest now contains 21 actions, ending in the Task6
+left 180-degree `P15_after_turn` at heading 0.0. `--destination P15` includes that
+explicit action; older 20-action manifests load for shorter prefixes but reject
+full P15 selection. The operations adapter rejects historical path-only completion
+as terminal success. Automatic-return admission remains restricted to historical
+20-action evidence; this change does not authorize reversing the terminal turn.
+
+Ubuntu-22.04 / Humble, after sourcing `/opt/ros/humble/setup.bash` and the workspace
+overlay:
+
+- `python3 -m pytest -q test/test_scene_entry.py test/test_task6_ops.py`: 37 passed.
+- `python3 tools/maze_entry.py 2 --dry-run`: exit 0, explicit terminal in output;
+  no backend or ROS publisher started.
+- `ruff format tools/scene_route.py tools/task6_ops_runtime.py tools/task6_return_auto.py
+  test/test_scene_entry.py test/test_task6_ops.py` and corresponding `ruff check`: passed.
+- `colcon build --packages-select pid_maze_solver --event-handlers console_direct+`:
+  passed; installed YAML/scene loader/operations adapter updated.
+- `colcon test --packages-select pid_maze_solver --event-handlers console_direct+`:
+  all 6 CTest entries passed; `colcon test-result --test-result-base
+  build/pid_maze_solver --verbose`: 23 tests, zero errors/failures/skips.
+- `python3 -m pytest -q test`: 190 passed, including legacy automatic-return admission.
+- `git diff --check`: passed.
+
+This is frontend/manifest/evidence verification. Physical terminal rotation, cloud
+runtime, formal obstacle avoidance, repeated complete routes, and official scoring
+remain unverified here. Task7 and task tags were not modified. No hardware command,
+commit or push was performed by this implementation agent.

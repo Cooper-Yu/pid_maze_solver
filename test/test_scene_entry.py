@@ -35,25 +35,25 @@ class SceneFiles(unittest.TestCase):
 
     def test_scene2_complete_fixed_endpoints(self):
         route = scene_route.validate_real(self.real)
-        self.assertEqual(len(route['actions']), 20)
+        self.assertEqual(len(route['actions']), 21)
         self.assertEqual(route['actions'][0]['points'][0], [0.0, 0.0])
         p13 = next(a for a in route['actions'] if a['name'] == 'P13')
         self.assertEqual(p13['points'][-1], [0.4258019547712687, -1.0819099009985675])
         self.assertEqual(
-            route['actions'][-1]['points'][-1], [0.02899960878708014, -0.5596575672149936]
+            route['actions'][-2]['points'][-1], [0.02899960878708014, -0.5596575672149936]
         )
 
     def test_guarded_prefix_and_explicit_validation(self):
         route = scene_route.validate_real(self.real)
         self.assertIs(route['validated'], False)
         self.assertEqual(route['test_until'], 'P15')
-        self.assertEqual(len(scene_route.select_real(route, 'P15', True)['actions']), 20)
+        self.assertEqual(len(scene_route.select_real(route, 'P15', True)['actions']), 21)
         route['test_until'] = 'P12'
         self.assertEqual(scene_route.select_real(route, 'P12', True)['actions'][-1]['name'], 'P12')
         with self.assertRaisesRegex(ValueError, 'not validated'):
             scene_route.select_real(route, 'P15', True)
         route['validated'] = True
-        self.assertEqual(len(scene_route.select_real(route, 'P15', True)['actions']), 20)
+        self.assertEqual(len(scene_route.select_real(route, 'P15', True)['actions']), 21)
         self.assertEqual(scene_route.select_real(route, 'P03_turn')['actions'][-1]['kind'], 'turn')
 
     def test_discontinuity_nonfinite_and_hidden_heading_rejected(self):
@@ -78,6 +78,28 @@ class SceneFiles(unittest.TestCase):
                 scene_route.load_scene(path, 2)
         with self.assertRaises(ValueError):
             scene_route.load_scene(ROOT / 'waypoints/waypoints_real.yaml', 1)
+
+    def test_terminal_contract_and_legacy_manifest(self):
+        route = scene_route.validate_real(self.real)
+        terminal = scene_route.select_real(route, 'P15', True)['actions'][-1]
+        self.assertEqual(terminal, dict(name='P15_after_turn', kind='turn', heading_rad=0.0))
+        legacy = copy.deepcopy(self.real)
+        legacy['actions'].pop()
+        route = scene_route.validate_real(legacy)
+        self.assertEqual(scene_route.select_real(route, 'P14')['actions'][-1]['name'], 'P14')
+        for execute in (False, True):
+            with self.assertRaisesRegex(ValueError, 'requires explicit P15_after_turn'):
+                scene_route.select_real(route, 'P15', execute)
+        for mutate in (
+            lambda r: r['actions'][-1].__setitem__('kind', 'path'),
+            lambda r: r['actions'][-1].__setitem__('heading_rad', 6.283185307179586),
+            lambda r: r['actions'].append(copy.deepcopy(r['actions'][-1])),
+            lambda r: r['actions'].insert(-2, r['actions'].pop()),
+        ):
+            with self.subTest(mutate=mutate), self.assertRaises(ValueError):
+                bad = copy.deepcopy(self.real)
+                mutate(bad)
+                scene_route.validate_real(bad)
 
 
 class ReverseSceneFiles(unittest.TestCase):
@@ -175,8 +197,8 @@ class EntryContract(unittest.TestCase):
             payload = json.loads(manifest.read_text())
             expected = yaml.safe_load((ROOT / 'waypoints/waypoints_real.yaml').read_text())
             self.assertEqual(payload['actions'], expected['actions'])
-            self.assertEqual(len(payload['actions']), 20)
-            self.assertEqual(payload['actions'][-1]['name'], 'P15')
+            self.assertEqual(len(payload['actions']), 21)
+            self.assertEqual(payload['actions'][-1]['name'], 'P15_after_turn')
             self.assertEqual(float(command[command.index('--turn-speed') + 1]), 0.20)
             self.assertIn('--laser-log-only', command)
             return 0

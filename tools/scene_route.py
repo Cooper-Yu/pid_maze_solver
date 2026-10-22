@@ -14,6 +14,8 @@ ACTION_NAMES = tuple(
     for i in range(2, 16)
     for name in ([f'P{i:02d}', f'P{i:02d}_after_turn'] if i in TURN_AFTER else [f'P{i:02d}'])
 )
+TERMINAL_ACTION = 'P15_after_turn'
+COMPLETE_ACTION_NAMES = ACTION_NAMES + (TERMINAL_ACTION,)
 
 
 class UniqueLoader(yaml.SafeLoader):
@@ -150,19 +152,21 @@ def validate_real(data):
     if type(data.get('validated')) is not bool:
         raise ValueError('Scene 2 requires explicit validated boolean')
     actions = data.get('actions')
-    if not isinstance(actions, list) or [
+    if not isinstance(actions, list) or tuple(
         a.get('name') for a in actions if isinstance(a, dict)
-    ] != list(ACTION_NAMES):
+    ) not in (ACTION_NAMES, COMPLETE_ACTION_NAMES):
         raise ValueError('Scene 2 requires the complete P02..P15 action order')
     result, position, heading = [], [0.0, 0.0], 0.0
     for action in actions:
         expected_kind = 'turn' if action['name'].endswith('_after_turn') else 'path'
         if action.get('kind') != expected_kind:
             raise ValueError('Waypoint labels must match their action kind')
+        if action['name'] == TERMINAL_ACTION and number(action['heading_rad'], 'heading_rad') != 0:
+            raise ValueError('P15_after_turn requires heading_rad: 0.0 (left 180 degrees)')
         clean, position, heading = validate_action(action, position, heading)
         result.append(clean)
     test_until = data.get('test_until')
-    if test_until not in ACTION_NAMES:
+    if test_until not in tuple(action['name'] for action in actions):
         raise ValueError('Scene 2 requires a declared test_until action')
     return dict(
         schema=1,
@@ -199,10 +203,18 @@ def load_scene(path, scene):
 
 def select_real(route, destination='P15', execute=False):
     label = 'P03_after_turn' if destination == 'P03_turn' else destination
-    if label not in ACTION_NAMES:
+    if label not in COMPLETE_ACTION_NAMES:
         raise ValueError('Unknown destination')
-    index = ACTION_NAMES.index(label)
-    if execute and not route['validated'] and index > ACTION_NAMES.index(route['test_until']):
+    names = tuple(action['name'] for action in route['actions'])
+    if destination == 'P15':
+        label = TERMINAL_ACTION
+    if label not in names:
+        raise ValueError('Full P15 route requires explicit P15_after_turn; update the manifest')
+    index = names.index(label)
+    permission = route['test_until']
+    if permission == 'P15' and TERMINAL_ACTION in names:
+        permission = TERMINAL_ACTION
+    if execute and not route['validated'] and index > names.index(permission):
         raise ValueError(
             f'Route not validated beyond {route["test_until"]}; requested {destination}'
         )
