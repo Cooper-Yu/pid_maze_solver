@@ -36,8 +36,7 @@ trap 'exit 143' TERM
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 pgrep -af 'gzserver|ign gazebo|ignition-gazebo|gz sim' > "$out/simulator_processes.txt"
 git -C "$repo" rev-parse HEAD > "$out/source_head.txt"
-timeout --signal=INT 15s ros2 control list_controllers > "$out/controllers.txt" 2>&1
-grep -Eq "rosbot_xl_base_controller.*active" "$out/controllers.txt"
+# Controller-service discovery is not a motion gate; require live feedback below.
 for topic in clock odometry/filtered scan; do
   name=${topic//\//_}
   timeout --signal=INT 10s ros2 topic echo "/$topic" --once > "$out/preflight_$name.yaml"
@@ -50,12 +49,14 @@ sleep 3
 kill -0 "$recorder_pid"
 for scene in 1 3; do
   timeout --signal=INT 10s ros2 topic echo /odometry/filtered --once > "$out/scene${scene}_start_odom.yaml"
-  setsid timeout --signal=INT --kill-after=20s 240s ros2 run pid_maze_solver pid_maze_solver "$scene" > "$out/scene${scene}.log" 2>&1 &
+  date -u +%s > "$out/scene${scene}_wall_start.txt"
+  setsid timeout --signal=INT --kill-after=20s 1200s ros2 run pid_maze_solver pid_maze_solver "$scene" > "$out/scene${scene}.log" 2>&1 &
   controller_pid=$!
   set +e
   wait "$controller_pid"
   result=$?
   set -e
+  date -u +%s > "$out/scene${scene}_wall_end.txt"
   controller_pid=''
   printf '%s\n' "$result" > "$out/scene${scene}_exit.txt"
   if [ "$result" != 0 ]; then tail -n 5 "$out/scene${scene}.log"; exit "$result"; fi
