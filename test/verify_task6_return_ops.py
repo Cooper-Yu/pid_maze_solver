@@ -37,11 +37,11 @@ class ReturnOpsFixture(Fixture):
                 '--root',
                 str(directory / 'evidence'),
                 '--seconds',
-                '180',
+                str(getattr(self, 'fixture_seconds', 180)),
                 '--image-hz',
                 '2',
                 '--max-mib',
-                '180',
+                str(getattr(self, 'fixture_seconds', 180)),
             ],
             stdin=subprocess.DEVNULL,
             stdout=self.record_log,
@@ -57,8 +57,12 @@ class ReturnOpsFixture(Fixture):
         msg.data = bytes([1, 2, 3])
         self.image.publish(msg)
 
+    def return_options(self, config):
+        """The manual fixture remains the default; automatic fixture supplies full-route evidence."""
+        return []
+
     def prepare_return(self):
-        self.wait(lambda: self.child.poll() is not None, 100)
+        self.wait(lambda: self.child.poll() is not None, getattr(self, 'fixture_seconds', 100))
         assert self.child.returncode == 0, self.log.read_text()[-2000:]
         self.wait(self.released, 10)
         self.wait(lambda: not self.node.get_publishers_info_by_topic('/cmd_vel'), 5)
@@ -91,6 +95,8 @@ class ReturnOpsFixture(Fixture):
             ('run.started', dict(gids=gids)),
         ):
             (self.directory / (name + '.json')).write_text(json.dumps(value))
+        extra = self.return_options(config)
+        (self.directory / 'config.json').write_text(json.dumps(config))
         self.return_dir = self.directory / 'return'
         self.log = self.directory / 'wrapper.log'
         self.output = self.log.open('w')
@@ -105,9 +111,13 @@ class ReturnOpsFixture(Fixture):
                 '--return-dir',
                 str(self.return_dir),
                 '--deadline',
-                (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat(),
+                (
+                    datetime.now(timezone.utc)
+                    + timedelta(seconds=getattr(self, 'fixture_seconds', 180) + 180)
+                ).isoformat(),
                 '--max-seconds',
-                '180',
+                str(getattr(self, 'fixture_seconds', 180)),
+                *extra,
             ],
             stdin=subprocess.DEVNULL,
             stdout=self.output,

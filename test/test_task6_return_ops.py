@@ -1,5 +1,6 @@
 """No automatic advance, replay admission and original-epoch boundaries for return wrapper."""
 
+from contextlib import nullcontext
 from io import StringIO
 import json
 import os
@@ -126,6 +127,7 @@ class ReturnOpsTest(unittest.TestCase):
             with (
                 patch('task6_return_ops.load_run', return_value=({}, Mock(), gids, root)),
                 patch('task6_return_ops.Probe', return_value=fake),
+                patch('task6_return_ops.lock', side_effect=lambda _path: nullcontext()),
             ):
                 with self.assertRaisesRegex(RuntimeError, 'GID differs'):
                     start(args)

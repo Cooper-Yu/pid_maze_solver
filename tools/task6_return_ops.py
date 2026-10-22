@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Attach one audited same-epoch return; each next is explicit, never automatic."""
+"""Attach one audited same-epoch return; manual next by default, optional audited automatic next."""
 
 import argparse
 from dataclasses import asdict
 import json
+import math
 import os
 from pathlib import Path
 import sys
@@ -13,6 +14,7 @@ import uuid
 from task6_ops import deadline, digest, git, lock
 from task6_ops_runtime import Operation, read_json, write_json
 from task6_preflight import ODOM, Probe
+from task6_return_auto import AutoAdvance, source_digest, validate_full_route
 
 
 def load_run(directory):
@@ -76,18 +78,27 @@ class ReturnOperation(Operation):
         self.seen = set()
         self.busy, self.closing = False, False
         self.completed_count = 0
+        self.auto = AutoAdvance(source, identities[ODOM[0]][0]) if config.get('auto_next') else None
         self.state = dict(
             ready=False, busy=False, closed=False, cursor=len(source.actions), last_request=None
         )
 
     def save_state(self, rows):
+        if self.auto:
+            self.auto.consume(rows)
         completed = [r for r in rows if r.get('event') == 'return_action_completed']
         if len(completed) > self.completed_count:
             self.busy = False
         self.completed_count = len(completed)
         attached = any(r.get('event') == 'return_session_started' for r in rows)
         self.state.update(
-            ready=attached and not self.busy and not self.closing,
+            ready=attached
+            and not self.busy
+            and not self.closing
+            and not (self.auto and self.auto.complete),
+            auto_next=self.auto is not None,
+            participant_binding=self.auto.context_binding if self.auto else None,
+            participant_observed_at=self.auto.context_seen_at if self.auto else None,
             busy=self.busy,
             pid=os.getpid(),
             completed=self.completed_count,
@@ -97,7 +108,15 @@ class ReturnOperation(Operation):
         )
         write_json(self.directory / 'control.json', self.state)
 
-    def request(self, request, rows):
+    def next_dispatch_reason(self):
+        if self.cancelled or self.closing:
+            return 'Return is cancelled or closing'
+        self.check_limits()
+        if self.cancelled or self.closing:
+            return 'Return is cancelled or closing'
+        return None
+
+    def request(self, request, rows, *, automatic=False):
         name, ident = request.get('command'), request.get('id')
         reason = None
         if (
@@ -108,14 +127,20 @@ class ReturnOperation(Operation):
             reason = 'Duplicate/stale request'
         elif name not in ('next', 'plan', 'status', 'quit'):
             reason = 'Unknown command'
+        elif name == 'next' and self.auto and not automatic:
+            reason = 'Automatic mode owns next; use quit to stop'
         elif name == 'next' and (not self.state['ready'] or self.busy or self.state['cursor'] == 0):
             reason = 'Not ready or an action is already pending'
         elif name in ('plan', 'status') and self.busy:
             reason = 'Wait for the current action to stop'
         if isinstance(ident, str):
             self.seen.add(ident)
+        if reason is None and name == 'next':
+            reason = self.next_dispatch_reason()
         if reason is None:
             if name == 'next':
+                if self.auto:
+                    self.auto.mark_requested()
                 self.busy = True
             if name == 'quit':
                 self.closing = True
@@ -138,6 +163,55 @@ class ReturnOperation(Operation):
             line, self.buffer = self.buffer.split(b'\n', 1)
             self.request(json.loads(line), rows)
 
+    def advance(self, rows):
+        if not self.auto or self.auto.complete or self.closing or self.cancelled:
+            return
+        if self.auto.ready(self.probe):
+            if source_digest(self.source_path) != self.source.source_hash:
+                raise RuntimeError('Source book/audit changed before automatic next')
+            self.check_limits()
+            self.probe.snapshot(stopped=True, expected=self.identities)
+            self.check_recording()
+            self.check_limits()
+            if self.cancelled or self.closing:
+                return
+            self.request(
+                dict(id=str(uuid.uuid4()), command='next', wall_s=time.time()), rows, automatic=True
+            )
+
+    def finish_wait(self, audit):
+        """After audited completion, verify stopped evidence and bound normal child exit."""
+        if self.auto is None or not self.auto.complete:
+            raise RuntimeError('Return exit wait requires audited complete return')
+        self.phase = 'return_exit_wait'
+        deadline = time.monotonic() + 2.0
+        while True:
+            self.probe.pump()
+            self.check_limits()
+            self.probe.snapshot(stopped=True, expected=self.identities)
+            self.check_recording()
+            rows = audit_rows(audit)
+            self.save_state(rows)
+            if not rows or rows[-1].get('event') != 'return_completed':
+                raise RuntimeError('Completed return audit changed during child exit')
+            if source_digest(self.source_path) != self.source.source_hash:
+                raise RuntimeError('Source book/audit changed during return exit')
+            command = self.probe.last_command
+            if (
+                command is None
+                or self.auto.requested_at is None
+                or command['receipt'] < self.auto.requested_at
+                or not all(math.isfinite(v) and abs(v) < 1e-9 for v in command['values'])
+            ):
+                raise RuntimeError('Completed return has no observed final zero command')
+            if time.monotonic() >= deadline:
+                raise RuntimeError('Return child did not exit normally within 2 seconds')
+            code = self.runner.poll()
+            if code is not None:
+                if code != 0:
+                    raise RuntimeError(f'Completed return child exited {code}')
+                return
+
     def execute(self):
         import subprocess
 
@@ -158,6 +232,8 @@ class ReturnOperation(Operation):
         fifo_path = self.directory / 'control.fifo'
         os.mkfifo(fifo_path, 0o600)
         self.fifo = os.open(fifo_path, os.O_RDWR | os.O_NONBLOCK)
+        if self.auto:
+            self.auto.before_child(self.probe.return_context())
         with (self.directory / 'motion.log').open('x') as output:
             self.runner = subprocess.Popen(
                 command,
@@ -166,18 +242,29 @@ class ReturnOperation(Operation):
                 stderr=subprocess.STDOUT,
                 text=True,
                 start_new_session=True,
+                env={**os.environ, 'RMW_IMPLEMENTATION': 'rmw_fastrtps_cpp'} if self.auto else None,
             )
         audit = self.directory / 'return_points.jsonl'
         while self.runner.poll() is None:
             self.probe.pump()
             self.check_limits()
-            self.probe.snapshot(stopped=False, expected=self.identities)
+            observed = self.probe.snapshot(stopped=False, expected=self.identities)
             self.check_recording()
             rows = audit_rows(audit)
             self.save_state(rows)
+            if self.auto and self.auto.complete:
+                break
+            if self.runner.poll() is not None:
+                break
+            if self.auto:
+                self.auto.observe_context(self.probe.return_context(), child_alive=True)
+                self.auto.observe_publishers(observed)
             self.receive(rows)
+            self.advance(rows)
         rows = audit_rows(audit)
         self.save_state(rows)
+        if self.auto:
+            self.finish_wait(audit)
         if self.runner.returncode != 0 or not rows or rows[-1].get('event') != 'return_completed':
             raise RuntimeError('Return closed without complete original-P01 return; no resume')
 
@@ -210,6 +297,13 @@ def send(directory, command):
 
 def start(args):
     config, source, gids, library = load_run(args.source_run_dir)
+    if getattr(args, 'auto_next', False):
+        validate_full_route(
+            config,
+            source,
+            args.source_run_dir / 'points.json',
+            audit_rows(args.source_run_dir / 'points.jsonl'),
+        )
     if (
         args.deadline is None
         or args.deadline - time.time() < 120
@@ -236,6 +330,7 @@ def start(args):
                 deadline_unix=args.deadline,
                 max_seconds=args.max_seconds,
                 destination='P01',
+                auto_next=getattr(args, 'auto_next', False),
             )
             manifest = dict(
                 options=options,
@@ -247,6 +342,7 @@ def start(args):
                 preflight=snapshot,
                 return_entry_sha256=digest(library / 'route_return_runner'),
                 wrapper_sha256=digest(__file__),
+                auto_helper_sha256=digest(Path(__file__).with_name('task6_return_auto.py')),
                 wrapper_git=git(Path(__file__).resolve().parents[1], 'rev-parse', 'HEAD'),
                 support_sha256={
                     n: digest(support / n)
@@ -274,8 +370,15 @@ def main(argv=None):
     parser.add_argument('--return-dir', type=Path)
     parser.add_argument('--deadline', type=deadline)
     parser.add_argument('--max-seconds', type=int, default=900)
+    parser.add_argument(
+        '--auto-next',
+        action='store_true',
+        help='Advance only a completed full route; default is manual next',
+    )
     args = parser.parse_args(argv)
     try:
+        if args.auto_next and args.action != 'start':
+            raise ValueError('--auto-next is valid only with start')
         if args.action in ('plan', 'start') and args.source_run_dir is None:
             raise ValueError('--source-run-dir required')
         if args.action != 'plan' and args.return_dir is None:

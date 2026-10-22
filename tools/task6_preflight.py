@@ -1,5 +1,6 @@
 """Read-only live feedback and publisher checks for the Task6 operations wrapper."""
 
+from copy import deepcopy
 import math
 import time
 
@@ -35,9 +36,11 @@ class Probe:
         from sensor_msgs.msg import LaserScan
         from rclpy.qos import qos_profile_sensor_data
         from rclpy.signals import SignalHandlerOptions
+        from rclpy.utilities import get_rmw_implementation_identifier
         from tf2_ros import Buffer, TransformListener
 
         self.ros = rclpy
+        self.rmw_identifier = get_rmw_implementation_identifier()
         rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
         self.node = rclpy.create_node('task6_read_only_preflight')
         self.samples, self.counts, self.failure = {}, {}, None
@@ -123,6 +126,15 @@ class Probe:
             key=lambda item: item['gid'],
         )
 
+    def return_context(self):
+        """Observe the actual local RMW and rosout graph; never infer identity from logs."""
+        observed_at = time.monotonic()
+        return dict(
+            rmw_identifier=self.rmw_identifier,
+            rosout_observed_at=observed_at,
+            rosout_endpoints=deepcopy(self.endpoints('/rosout')),
+        )
+
     def diagnostics(self):
         """Capture cached feedback before cleanup; this never validates or permits motion."""
         now_ros = self.node.get_clock().now().nanoseconds / 1e9
@@ -168,9 +180,12 @@ class Probe:
             expected is not None and gids != expected
         ):
             raise RuntimeError('Odometry publisher identity/count changed')
+        observed_at = time.monotonic()
         endpoints = self.endpoints('/cmd_vel')
         count = len(endpoints)
-        self.last_check.update(cmd_count=count, cmd_endpoints=endpoints)
+        self.last_check.update(
+            cmd_count=count, cmd_endpoints=deepcopy(endpoints), cmd_observed_at=observed_at
+        )
         if count > (0 if stopped else 1):
             raise RuntimeError(
                 'Unexpected cmd_vel publisher; release teleop/controller: '
@@ -185,6 +200,8 @@ class Probe:
             counts=self.counts.copy(),
             gids=gids,
             cmd_publishers=count,
+            cmd_endpoints=deepcopy(endpoints),
+            cmd_observed_at=observed_at,
             last_command=self.last_command,
             laser_to_base=dict(translation=[t.x, t.y, t.z], quaternion=[q.x, q.y, q.z, q.w]),
         )
