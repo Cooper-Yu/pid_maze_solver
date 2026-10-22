@@ -198,3 +198,10 @@ YAML. Scene 3 rejects unchecked ROS overrides and forces simulation time. Scene 
 and scene 2 keep their existing configuration contracts. Scene 4 / Task8 hardware
 return is not implemented or authorized by this simulation task. Task7 does not
 provide recovery after a real robot's odometry reset.
+For an already running course cloud maze in isolated localhost ROS domain 117,
+`bash tools/task7_cloud_verify.bash` checks feedback and zero publishers, then runs
+scene 1 followed by scene 3 with bounded deadlines and owned-process cleanup.
+It saves logs/odom/commands under `~/task7_cloud_*`; the report checks route order,
+zero terminal command, released publishers and a 4 cm / 0.03 rad round-trip bound.
+It does not measure wall contacts or submit an official score. The helper targets
+the course `/home/user/ros2_ws` environment and never connects to real hardware.
