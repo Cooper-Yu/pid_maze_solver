@@ -39,7 +39,12 @@ git -C "$repo" rev-parse HEAD > "$out/source_head.txt"
 # Controller-service discovery is not a motion gate; require live feedback below.
 for topic in clock odometry/filtered scan; do
   name=${topic//\//_}
-  timeout --signal=INT 10s ros2 topic echo "/$topic" --once > "$out/preflight_$name.yaml"
+  case "$topic" in
+    clock) message_type=rosgraph_msgs/msg/Clock ;;
+    odometry/filtered) message_type=nav_msgs/msg/Odometry ;;
+    scan) message_type=sensor_msgs/msg/LaserScan ;;
+  esac
+  timeout --signal=INT 30s ros2 topic echo "/$topic" "$message_type" --once > "$out/preflight_$name.yaml"
 done
 ros2 topic info /cmd_vel > "$out/publishers_before.txt"
 grep -q '^Publisher count: 0$' "$out/publishers_before.txt"
@@ -48,7 +53,7 @@ recorder_pid=$!
 sleep 3
 kill -0 "$recorder_pid"
 for scene in 1 3; do
-  timeout --signal=INT 10s ros2 topic echo /odometry/filtered --once > "$out/scene${scene}_start_odom.yaml"
+  timeout --signal=INT 10s ros2 topic echo /odometry/filtered nav_msgs/msg/Odometry --once > "$out/scene${scene}_start_odom.yaml"
   date -u +%s > "$out/scene${scene}_wall_start.txt"
   setsid timeout --signal=INT --kill-after=20s 1200s ros2 run pid_maze_solver pid_maze_solver "$scene" > "$out/scene${scene}.log" 2>&1 &
   controller_pid=$!
@@ -63,7 +68,7 @@ for scene in 1 3; do
   sleep 2
   ros2 topic info /cmd_vel > "$out/scene${scene}_publishers_after.txt"
   grep -q '^Publisher count: 0$' "$out/scene${scene}_publishers_after.txt"
-  timeout --signal=INT 10s ros2 topic echo /odometry/filtered --once > "$out/scene${scene}_end_odom.yaml"
+  timeout --signal=INT 10s ros2 topic echo /odometry/filtered nav_msgs/msg/Odometry --once > "$out/scene${scene}_end_odom.yaml"
   printf 'SCENE%s_EXIT=0\n' "$scene"
 done
 stop_group "$recorder_pid"
