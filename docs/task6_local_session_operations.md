@@ -63,4 +63,4 @@ python3 ~/ros2_ws/src/pid_maze_solver/tools/task6_local_session_ops.py step \
 本片段 16 个纯状态/协议测试通过；连同已有单步包装器 13 个用例合计 29 PASS。
 覆盖 token/index/session/anchor、重复/过期/BUSY丢弃、取消与反馈失效阻止调度、
 无自动下一步、失败终态及无命令关闭证据。Ruff/format 通过。
-尚未完成此包装器的真实 ROS 集成或真机验收，不能由纯测试推断现场可安全返回。
+2026-10-22 已完成 WSL Ubuntu-22.04/Humble 隔离 ROS 包装器集成：两次显式步进后 quit 为 exit 0，运动中 quit 为 exit 2/Cancelled；两例均末零速、pub0/maxpub1、录制闭合和锁释放。正常例原测试误将累计纵向位移期待为两倍步长，已保留该断言错误并按每步 actual−distance 合同离线复核；未因此重跑或改动生产逻辑。尚未完成此会话的真机验收，合成反馈不能证明现场纠偏收敛或避障。
