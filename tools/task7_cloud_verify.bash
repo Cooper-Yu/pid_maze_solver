@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Run only against the already started local simulation in dedicated domain 117.
+# Run only against the already started local simulation in dedicated domain 147.
 source /opt/ros/humble/setup.bash
 source /home/user/ros2_ws/install/setup.bash
 set -eo pipefail
-export ROS_DOMAIN_ID=117 ROS_LOCALHOST_ONLY=1 ROS2CLI_NO_DAEMON=1
+export ROS_DOMAIN_ID=147 ROS_LOCALHOST_ONLY=1 ROS2CLI_NO_DAEMON=1
+export IGN_PARTITION=task7_cloud_verification_147 GZ_PARTITION=task7_cloud_verification_147
 out="$HOME/task7_cloud_$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$out"
 printf '%s\n' "$out" > "$HOME/task7_cloud_latest.txt"
@@ -35,6 +36,8 @@ trap 'exit 143' TERM
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 pgrep -af 'gzserver|ign gazebo|ignition-gazebo|gz sim' > "$out/simulator_processes.txt"
 git -C "$repo" rev-parse HEAD > "$out/source_head.txt"
+timeout --signal=INT 15s ros2 control list_controllers > "$out/controllers.txt" 2>&1
+grep -Eq "rosbot_xl_base_controller.*active" "$out/controllers.txt"
 for topic in clock odometry/filtered scan; do
   name=${topic//\//_}
   timeout --signal=INT 10s ros2 topic echo "/$topic" --once > "$out/preflight_$name.yaml"
