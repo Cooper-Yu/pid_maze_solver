@@ -70,30 +70,36 @@ def recorder_health(root, previous=None):
     return session, data
 
 
-class StartupScanWait:
-    """Bound one stopped scan outage; fresh timestamps, not loop ticks, recover it."""
+class StartupFeedbackWait:
+    """No controller exists: wait at most five seconds for fresh stopped feedback."""
 
     def __init__(self):
         self.started = None
-        self.last_stamp = None
-        self.fresh_count = 0
+        self.baseline = None
 
     def ready(self, snapshot, now):
-        stamp = snapshot['samples'][SCAN]['stamp']
-        if not snapshot['scan_fresh'] and self.started is None:
-            self.started, self.last_stamp = now, stamp
+        stamps = {t: snapshot['samples'][t]['stamp'] for t in (*ODOM, SCAN)}
+        if not snapshot['feedback_fresh']:
+            if self.started is None:
+                self.started = now
+            self.baseline = None
         if self.started is None:
             return True
-        if now - self.started >= 2.0:
-            raise RuntimeError('Evidence startup scan wait exceeded 2 seconds')
-        if not snapshot['scan_fresh']:
-            self.last_stamp, self.fresh_count = stamp, 0
-        elif stamp > self.last_stamp:
-            self.last_stamp = stamp
-            self.fresh_count += 1
-        if self.fresh_count < 3:
+        if now - self.started >= 5.0:
+            raise RuntimeError('Stopped startup feedback wait exceeded 5 seconds')
+        if not snapshot['feedback_fresh']:
             return False
-        self.started, self.last_stamp, self.fresh_count = None, None, 0
+        if self.baseline is None:
+            self.baseline = (now, stamps, {t: 1 for t in stamps})
+            return False
+        since, previous, counts = self.baseline
+        for topic, stamp in stamps.items():
+            if stamp > previous[topic]:
+                counts[topic] += 1
+                previous[topic] = stamp
+        if now - since < 0.3 or min(counts.values()) < 3:
+            return False
+        self.started = self.baseline = None
         return True
 
 
@@ -157,14 +163,14 @@ class Operation:
             self.directory / 'watch.log',
         )
         deadline, first = time.monotonic() + 18, None
-        scan_wait = StartupScanWait()
+        feedback_wait = StartupFeedbackWait()
         while time.monotonic() < deadline:
             self.probe.pump()
             self.check_limits()
             observed = self.probe.snapshot(
-                stopped=True, expected=self.identities, stopped_scan_wait=True
+                stopped=True, expected=self.identities, stopped_feedback_wait=True
             )
-            scan_ready = scan_wait.ready(observed, time.monotonic())
+            feedback_ready = feedback_wait.ready(observed, time.monotonic())
             self.require_evidence_alive()
             try:
                 session, health = recorder_health(self.directory / 'evidence')
@@ -173,15 +179,15 @@ class Operation:
                     continue
                 if health['unix_time'] == first['unix_time']:
                     continue
-                recorder_health(self.directory / 'evidence', first['message_counts'])
+                if feedback_ready:
+                    recorder_health(self.directory / 'evidence', first['message_counts'])
             except (FileNotFoundError, json.JSONDecodeError):
                 continue
             except RuntimeError:
                 if first is not None:
                     raise
                 continue
-            if scan_ready:
-                self.probe.snapshot(stopped=True, expected=self.identities)
+            if feedback_ready:
                 self.recorder_session, self.last_health = session, health
                 self.last_growth = time.monotonic()
                 return
@@ -206,6 +212,18 @@ class Operation:
             raise RuntimeError('Recorder growth timeout')
         self.recorder_session = session
 
+    def wait_before_dispatch(self):
+        wait = StartupFeedbackWait()
+        while True:
+            self.probe.pump()
+            self.check_limits()
+            self.require_evidence_alive()
+            current = self.probe.snapshot(
+                stopped=True, expected=self.identities, stopped_feedback_wait=True
+            )
+            if wait.ready(current, time.monotonic()):
+                return
+
     def execute(self):
         self.start_evidence()
         self.check_limits()
@@ -225,10 +243,11 @@ class Operation:
             str(self.config.get('turn_speed', 0.10)),
         ]
         write_json(self.directory / 'motion_command.json', command)
-        self.phase = 'official_runner'
+        self.phase = 'pre_dispatch_feedback'
         self.check_limits()
-        self.probe.snapshot(stopped=True, expected=self.identities)
+        self.wait_before_dispatch()
         self.runner = spawn(command, self.directory / 'motion.log')
+        self.phase = 'official_runner'
         feedback_pause = SupervisorPause(self.directory)
         while self.runner.poll() is None:
             self.probe.pump()

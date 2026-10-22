@@ -23,23 +23,27 @@ class StartupTest(unittest.TestCase):
             self.gids,
         )
         self.operation.started = self.now
-        self.wait = runtime.StartupScanWait()
+        self.wait = runtime.StartupFeedbackWait()
 
     def observe(self, stamp, fresh, elapsed=0):
-        return self.wait.ready(dict(scan_fresh=fresh, samples={SCAN: dict(stamp=stamp)}), elapsed)
+        return self.wait.ready(
+            dict(feedback_fresh=fresh, samples={t: dict(stamp=stamp) for t in (*ODOM, SCAN)}),
+            elapsed,
+        )
 
     def test_three_new_fresh_stamps_after_outage(self):
         self.assertFalse(self.observe(100, False))
         self.assertFalse(self.observe(101, True, 0.1))
         self.assertFalse(self.observe(102, True, 0.2))
-        self.assertTrue(self.observe(103, True, 0.3))
+        self.assertFalse(self.observe(103, True, 0.3))
+        self.assertTrue(self.observe(104, True, 0.5))
 
     def test_duplicates_never_complete_recovery(self):
         self.assertFalse(self.observe(100, False))
         for elapsed in (0.1, 0.4, 1.0, 1.9):
             self.assertFalse(self.observe(101, True, elapsed))
-        with self.assertRaisesRegex(RuntimeError, '2 seconds'):
-            self.observe(102, True, 2.0)
+        with self.assertRaisesRegex(RuntimeError, '5 seconds'):
+            self.observe(102, True, 5.0)
 
     def test_bad_frames_reset_count_not_deadline(self):
         self.observe(100, False)
@@ -47,8 +51,8 @@ class StartupTest(unittest.TestCase):
         self.observe(102, True, 0.2)
         self.assertFalse(self.observe(103, False, 1.8))
         self.assertFalse(self.observe(104, True, 1.9))
-        with self.assertRaisesRegex(RuntimeError, '2 seconds'):
-            self.observe(105, False, 2.0)
+        with self.assertRaisesRegex(RuntimeError, '5 seconds'):
+            self.observe(105, False, 5.0)
 
     def test_real_probe_only_scan_age_is_waitable(self):
         for problem in ('gid', 'publisher', 'odom', 'motion', 'tf', 'latched', 'future', 'ranges'):
@@ -85,6 +89,37 @@ class StartupTest(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, 'source timestamp'):
                     self.probe.snapshot(stopped=stopped, expected=self.gids)
 
+    def test_stale_odom_waits_only_in_stopped_startup_scope(self):
+        self.probe.samples[ODOM[0]]['stamp'] = 99
+        with patch('task6_preflight.time.monotonic', return_value=self.now):
+            current = self.probe.snapshot(expected=self.gids, stopped_feedback_wait=True)
+            self.assertFalse(current['feedback_fresh'])
+            with self.assertRaisesRegex(RuntimeError, 'source timestamp'):
+                self.probe.snapshot(expected=self.gids)
+            with self.assertRaises(ValueError):
+                self.probe.snapshot(stopped=False, stopped_feedback_wait=True)
+
+    def test_startup_wait_still_rejects_identity_motion_future_frame_and_controller(self):
+        for problem in ('gid', 'publisher', 'motion', 'future', 'frame', 'latched'):
+            with self.subTest(problem=problem):
+                self.setUp()
+                self.probe.samples[ODOM[0]]['stamp'] = 99
+                if problem == 'gid':
+                    self.probe.identities = lambda _: ['replacement']
+                elif problem == 'publisher':
+                    self.probe.endpoints = lambda _: [dict(gid='foreign')]
+                elif problem == 'motion':
+                    self.probe.samples[ODOM[1]]['velocity'][0] = 0.02
+                elif problem == 'future':
+                    self.probe.samples[ODOM[1]]['stamp'] = 101
+                elif problem == 'frame':
+                    self.probe.samples[ODOM[1]]['frame'] = 'new_odom'
+                else:
+                    self.probe.failure = 'Timestamp moved backward'
+                with patch('task6_preflight.time.monotonic', return_value=self.now):
+                    with self.assertRaises(RuntimeError):
+                        self.probe.snapshot(expected=self.gids, stopped_feedback_wait=True)
+
     def run_startup(self, callback, health=True):
         def pump():
             self.now += 0.1
@@ -93,7 +128,8 @@ class StartupTest(unittest.TestCase):
         self.probe.pump = pump
         self.probe.snapshot = Mock(
             side_effect=lambda **kw: dict(
-                samples={SCAN: dict(stamp=self.now)}, scan_fresh=self.now >= 10.4
+                samples={t: dict(stamp=self.now) for t in (*ODOM, SCAN)},
+                feedback_fresh=self.now >= 10.4,
             )
         )
         child = Mock()
@@ -117,7 +153,8 @@ class StartupTest(unittest.TestCase):
         self.run_startup(lambda: None)
         self.assertGreaterEqual(self.now, 10.6)
         self.assertEqual(
-            self.probe.snapshot.call_args.kwargs, dict(stopped=True, expected=self.gids)
+            self.probe.snapshot.call_args.kwargs,
+            dict(stopped=True, expected=self.gids, stopped_feedback_wait=True),
         )
         self.assertIsNone(self.operation.runner)
 
@@ -149,6 +186,8 @@ class StartupTest(unittest.TestCase):
     def test_final_pre_spawn_check_prevents_dispatch(self):
         self.operation.start_evidence = Mock()
         self.operation.check_limits = Mock()
+        self.operation.require_evidence_alive = Mock()
+        self.probe.pump = Mock()
         self.operation.config.update(entry='/unused', destination='P12', waypoints='/unused')
         self.probe.snapshot = Mock(side_effect=RuntimeError('source stale before spawn'))
         with patch('task6_ops_runtime.write_json'), patch('task6_ops_runtime.spawn') as spawn:

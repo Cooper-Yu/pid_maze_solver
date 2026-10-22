@@ -257,3 +257,27 @@ limit and an explicit UTC deadline twenty minutes from invocation; the existing
 wrapper reserves cleanup time. Invoke only after teleop is released. The EXIT
 trap prints the run path, result and final controller lines; it creates no extra
 velocity publisher. This shortcut does not return the robot or resume old odom.
+### Stopped feedback wait before controller dispatch
+
+`feedback_pause_20261022_165902` failed with filtered odom source age before any
+recorded velocity command or controller log. The evidence-startup guard previously
+allowed only scan age to wait; either odom aging past 0.5 s aborted immediately.
+The exact failed phase/ages require that run's failure_snapshot for confirmation.
+
+During evidence startup and the final pre-dispatch boundary, the supervisor now
+keeps **zero velocity publishers** while a timestamp-age outage waits at most five
+seconds. Cached samples are never motion-ready. Recovery requires both odometry
+streams and scan to be fresh under the original 0.5 s limits, with at least three
+distinct source stamps per stream over a 0.3 s observation interval. Each renewed
+age outage resets this recovery evidence, not its five-second outage deadline.
+The existing total startup limit of 18 s and run/cancellation/deadline checks remain.
+Publisher identity/count, stopped velocities, TF, frames, invalid/future/backward
+stamps and latched data faults remain mandatory throughout. Initial preflight and
+normal active/final validation retain their existing strict rules; this is an
+explicit stopped startup scope only. Recorder process health remains mandatory;
+required count growth must be proved after feedback readiness before dispatch.
+
+Regression: `test_task6_evidence_startup.py` plus `test_task6_ops.py`; live localhost
+DDS fixture `ROS_DOMAIN_ID=195 ROS_LOCALHOST_ONLY=1 python3
+ test/verify_task6_startup_feedback.py recover` (also `timeout` and `cancel`).
+The live fixture asserts no `/cmd_vel` messages or publishers in all cases.

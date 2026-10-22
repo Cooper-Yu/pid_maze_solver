@@ -23,6 +23,7 @@ class AdmissionTest(unittest.TestCase):
             operation.directory = Path(folder)
             operation.config = dict(entry='fake', destination='P12', waypoints='fake.yaml')
             operation.start_evidence = Mock()
+            operation.wait_before_dispatch = Mock()
             operation.check_limits = Mock()
             operation.check_recording = Mock()
             operation.probe = Mock()
@@ -38,9 +39,9 @@ class AdmissionTest(unittest.TestCase):
                 with patch('task6_ops_runtime.spawn', return_value=child):
                     operation.execute()
                 calls = operation.probe.snapshot.call_args_list
-                self.assertEqual(calls[0].kwargs, dict(stopped=True, expected={}))
+                operation.wait_before_dispatch.assert_called()
                 self.assertEqual(
-                    calls[1].kwargs, dict(stopped=False, expected={}, scan_timeout=timeout)
+                    calls[0].kwargs, dict(stopped=False, expected={}, scan_timeout=timeout)
                 )
 
     def test_full_p15_success_requires_terminal_completion(self):
@@ -67,6 +68,7 @@ class AdmissionTest(unittest.TestCase):
             )
             operation = Operation.__new__(Operation)
             operation.start_evidence = Mock()
+            operation.wait_before_dispatch = Mock()
             operation.check_limits = Mock()
             operation.probe = Mock()
             operation.identities = {}
