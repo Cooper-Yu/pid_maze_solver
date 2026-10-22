@@ -29,6 +29,7 @@ def audit(root):
         code = int((root / f'scene{scene}_exit.txt').read_text())
         assert code == 0 and points == expected and 'Route completed; stopped.' in log
         assert ('Final clockwise turn completed:' in log) == (scene == 1)
+        assert ('Final counterclockwise turn completed:' in log) == (scene == 3)
         assert 'Publisher count: 0' in (root / f'scene{scene}_publishers_after.txt').read_text()
         results[str(scene)] = {'exit': code, 'points': points}
     commands = [d for d in yaml.safe_load_all((root / 'commands.yaml').read_text()) if d]
@@ -37,11 +38,11 @@ def audit(root):
     start = odom(root / 'scene1_start_odom.yaml')
     end = odom(root / 'scene3_end_odom.yaml')
     position = math.dist(start[:2], end[:2])
-    angle = math.atan2(math.sin(end[2] - start[2] - math.pi), math.cos(end[2] - start[2] - math.pi))
+    angle = math.atan2(math.sin(end[2] - start[2]), math.cos(end[2] - start[2]))
     result = {
         'phases': results,
         'return_odom_difference_m': position,
-        'opposite_heading_error_rad': angle,
+        'restored_heading_error_rad': angle,
         'terminal_command_zero': True,
         'source_head': (root / 'source_head.txt').read_text().strip(),
         'wall_contact_measurement': 'Unavailable; no contact classifier in this cloud harness',

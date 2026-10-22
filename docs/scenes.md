@@ -111,6 +111,7 @@ Start at a stopped Task5 P15 after its final clockwise half-turn, without reset 
 repositioning. The first accepted stopped pose anchors the relative route. Startup
 is not localization: an arbitrary pose is not evidence that P15 has been reached.
 Scene 3 retraces nominal Task5 geometry with headings opposite each outbound leg.
-Its final P01 heading differs by pi from the original start. The shipped route
-has no terminal half-turn. Scene 4 is rejected before a backend is started; no
+Its P01 arrival heading differs by pi from the original start. It then completes
+a counterclockwise half-turn with the shared signed-rotation PID and stopped-pose
+qualification, restoring the original P01 heading. Scene 4 is rejected before a backend is started; no
 hardware return or odometry-reset recovery is implied by this simulation route.

@@ -29,7 +29,13 @@ public:
     if (!get_node_parameters_interface()->get_parameter_overrides().count("use_sim_time"))
       set_parameter(rclcpp::Parameter("use_sim_time", true));
     configure_route();
-    final_turn_enabled_ = declare_parameter<bool>("final_clockwise_turn", true);
+    const bool clockwise = declare_parameter<bool>("final_clockwise_turn", true);
+    const bool counterclockwise = declare_parameter<bool>("final_counterclockwise_turn", false);
+    if (counterclockwise && (!reverse_ || clockwise))
+      throw std::invalid_argument(
+        "counterclockwise terminal turn requires reverse route and clockwise=false");
+    final_turn_enabled_ = clockwise || counterclockwise;
+    final_turn_delta_ = counterclockwise ? M_PI : -M_PI;
     speed_ = positive("max_speed", steps_.empty() ? .12 : .24);
     accel_ = positive("max_acceleration", steps_.empty() ? .25 : .4);
     const double kp = positive("distance_kp", 1.5), ki = nonnegative("distance_ki", 0.0),
@@ -534,7 +540,7 @@ private:
     return true;
   }
 
-  /** @brief Start a clockwise half-turn from the actual stopped P15 heading.
+  /** @brief Start the selected signed half-turn from the actual stopped final-point heading.
    * @par Terminal action
    * complete_stage() calls this only after the complete route reaches its final point.
    * odom() accumulates accepted signed yaw increments; tick() reads the remaining rotation.
@@ -546,13 +552,13 @@ private:
     final_turn_active_ = true;
     final_rotation_ = 0.0;
     moving_ = false;
-    heading_ = yaw_ - M_PI;
+    heading_ = yaw_ + final_turn_delta_;
     reset();
     stage_started_ = Clock::now();
     stage_ros_started_ = now();
     RCLCPP_INFO(
-      get_logger(), "Final clockwise turn: start=%.6f target=%.6f delta=-3.141593 rad", yaw_,
-      heading_);
+      get_logger(), "Final %s turn: start=%.6f target=%.6f delta=%.6f rad",
+      final_turn_delta_ > 0 ? "counterclockwise" : "clockwise", yaw_, heading_, final_turn_delta_);
   }
 
   /** @brief Complete a stopped TURN or MOVE and select the next state.
@@ -571,8 +577,8 @@ private:
     if (!ready) return;
     if (final_turn_active_) {
       RCLCPP_INFO(
-        get_logger(), "Final clockwise turn completed: rotation=%.6f error=%.6f rad",
-        final_rotation_, e);
+        get_logger(), "Final %s turn completed: rotation=%.6f error=%.6f rad",
+        final_turn_delta_ > 0 ? "counterclockwise" : "clockwise", final_rotation_, e);
       RCLCPP_INFO(get_logger(), "Route completed; stopped.");
       rclcpp::shutdown();
       return;
@@ -625,7 +631,8 @@ private:
     }
     last_ = now();
     center_from_sides();
-    const double e = final_turn_active_ ? -M_PI - final_rotation_ : maze::wrap(heading_ - yaw_);
+    const double e =
+      final_turn_active_ ? final_turn_delta_ - final_rotation_ : maze::wrap(heading_ - yaw_);
     const double distance = std::hypot(tx_ - x_, ty_ - y_);
     bool close = std::abs(e) < .01 && (!moving_ || distance < .015);
     if (close) {
@@ -672,7 +679,9 @@ private:
   std::vector<maze::MotionStep>
     steps_;  ///< Relative actions; empty in fixed-point compatibility mode.
   bool
-    final_turn_enabled_{};  ///< Append clockwise 180 degrees after the full route, not last_point trials.
+    final_turn_enabled_{};  ///< Append selected 180 degrees after the full route, not last_point trials.
+  double final_turn_delta_{
+    -M_PI};  ///< Signed terminal target: clockwise negative, counterclockwise positive.
   bool final_turn_active_{};  ///< Terminal rotation only; no MOVE or clearance translation.
   double
     final_rotation_{};  ///< Signed odom yaw accumulated since terminal entry, radians; clockwise negative.

@@ -95,19 +95,23 @@ def validate_sim(data, scene=1):
         'turn_kd',
     }
     if scene == 3:
-        allowed.add('route_direction')
+        allowed.update(('route_direction', 'final_counterclockwise_turn'))
         if params.get('route_direction') != 'reverse':
             raise ValueError('Scene 3 requires route_direction: reverse')
     if params.keys() - allowed:
         raise ValueError(f'Unknown scene {scene} parameter')
     for key, value in params.items():
-        if key in ('final_clockwise_turn', 'side_centering'):
+        if key in ('final_clockwise_turn', 'final_counterclockwise_turn', 'side_centering'):
             if type(value) is not bool:
                 raise ValueError(f'{key} must be boolean')
         elif key not in ('route_mode', 'steps', 'route_direction'):
             v = number(value, key)
             if v < 0 or (not key.endswith(('_ki', '_kd')) and v == 0):
                 raise ValueError(f'{key} must be positive (I/D may be zero)')
+    if params.get('final_counterclockwise_turn', False) and params.get(
+        'final_clockwise_turn', True
+    ):
+        raise ValueError('Terminal turn directions are mutually exclusive')
     steps = mapping(params.get('steps'), 'steps')
     names = STEP_NAMES if scene == 1 else REVERSE_STEP_NAMES
     if set(steps) != set(names):

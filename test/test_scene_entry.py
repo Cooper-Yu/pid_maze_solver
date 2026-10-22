@@ -95,6 +95,22 @@ class ReverseSceneFiles(unittest.TestCase):
             [f'P{i:02d}_P{i - 1:02d}' for i in range(15, 1, -1)],
         )
         self.assertFalse(route['parameters']['final_clockwise_turn'])
+        self.assertTrue(route['parameters']['final_counterclockwise_turn'])
+
+    def test_terminal_turn_rejects_conflict_nonboolean_and_forward_only_override(self):
+        for value in (1, 'true'):
+            data = copy.deepcopy(self.reverse)
+            data['parameters']['final_counterclockwise_turn'] = value
+            with self.assertRaises(ValueError):
+                scene_route.validate_sim(data, 3)
+        data = copy.deepcopy(self.reverse)
+        data['parameters']['final_clockwise_turn'] = True
+        with self.assertRaisesRegex(ValueError, 'mutually exclusive'):
+            scene_route.validate_sim(data, 3)
+        data = yaml.safe_load((ROOT / 'waypoints/waypoints_sim.yaml').read_text())
+        data['parameters']['final_counterclockwise_turn'] = True
+        with self.assertRaises(ValueError):
+            scene_route.validate_sim(data, 1)
 
     def test_reverse_order_canonicalized_without_changing_steps(self):
         data = copy.deepcopy(self.reverse)

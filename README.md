@@ -186,7 +186,9 @@ PID controller, footprint guard, stale-feedback stop and bounded stage timeouts.
 Start stopped at Task5's P15 **after its final clockwise half-turn**, with the same
 physical heading as the original P01. Startup anchors the current pose as P15;
 it does not locate or drive to that start. It returns through P14..P01 and ends
-facing opposite the original P01 heading, without an additional terminal turn.
+then turns counterclockwise by 180 degrees to restore the original P01 heading.
+The shipped scene 3 uses `final_counterclockwise_turn: true` and
+`final_clockwise_turn: false`; conflicting directions are rejected.
 
 Each reversed leg faces opposite the corresponding outbound leg. Since an action
 turns before translating, its turn comes from the next outbound leg in reversed

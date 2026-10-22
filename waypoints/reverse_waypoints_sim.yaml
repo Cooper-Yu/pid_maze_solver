@@ -2,11 +2,13 @@ schema: 1
 scene: 3
 frame: P15
 source: Task7 reverse of Task5 geometry. Start at completed Task5 P15 after its clockwise
-  half-turn; finish P01 facing opposite its original heading.
+  half-turn; finish P01 then turn counterclockwise 180 degrees to restore its
+  original heading.
 parameters:
   route_mode: motion_steps
   route_direction: reverse
   final_clockwise_turn: false
+  final_counterclockwise_turn: true
   side_centering: true
   steps:
     P15_P14:

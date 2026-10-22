@@ -79,10 +79,12 @@ class ReverseGeometryTest(unittest.TestCase):
                     0.0,
                 )
 
-    def test_finishes_at_original_p01_facing_pi_without_extra_turn(self):
+    def test_finishes_at_original_p01_then_restores_heading_with_ccw_half_turn(self):
         self.assert_point_close(self.back_points[-1], (0.0, 0.0))
         self.assertAlmostEqual(wrap(self.back_headings[-1] - math.pi), 0.0)
         self.assertAlmostEqual(abs(self.back_headings[-1] - self.start_yaw), math.pi)
+        self.assertIs(self.reverse['parameters']['final_counterclockwise_turn'], True)
+        self.assertAlmostEqual(wrap(self.back_headings[-1] + math.pi), 0.0)
 
     def test_translations_speed_and_segment_guards_are_preserved(self):
         forward_rows = list(reversed(list(self.outbound.values())))
@@ -99,6 +101,7 @@ class ReverseGeometryTest(unittest.TestCase):
         forward = copy.deepcopy(self.forward['parameters'])
         reverse = copy.deepcopy(self.reverse['parameters'])
         self.assertEqual(reverse.pop('route_direction'), 'reverse')
+        self.assertIs(reverse.pop('final_counterclockwise_turn'), True)
         self.assertEqual(forward.pop('route_direction', 'forward'), 'forward')
         for data in (forward, reverse):
             data.pop('steps')

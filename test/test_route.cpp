@@ -187,3 +187,18 @@ TEST(Motion, ReverseRetracesForwardGeometryAfterTerminalHalfTurn)
   }
   EXPECT_NEAR(maze::wrap(reverse.back().yaw - M_PI), 0, 1e-12);
 }
+
+TEST(Motion, CounterclockwiseHalfTurnKeepsDirectionAcrossBranchCutAndInitialNoise)
+{
+  EXPECT_NEAR(maze::accumulate_rotation(0, M_PI - .001, -M_PI + .001), .002, 1e-12);
+  EXPECT_GT(M_PI - maze::accumulate_rotation(0, 0, -.001), M_PI);
+  double previous = 3.13, progress = 0;
+  for (int i = 1; i <= 100; ++i) {
+    const double current = maze::wrap(3.13 + M_PI * i / 100);
+    progress = maze::accumulate_rotation(progress, previous, current);
+    previous = current;
+  }
+  EXPECT_NEAR(progress, M_PI, 1e-12);
+  EXPECT_NEAR(M_PI - progress, 0, 1e-12);
+  EXPECT_LT(M_PI - (progress + .02), 0);
+}
