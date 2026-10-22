@@ -12,8 +12,9 @@ import time
 
 from task6_ops import deadline, digest, git, lock
 from task6_ops_runtime import read_json, write_json
-from task6_preflight import ODOM, Probe
+from task6_preflight import ODOM, SCAN, Probe
 from task6_return_ops import ReturnOperation, send
+from task6_return_auto import AutoAdvance
 
 
 def load_prefix(directory):
@@ -55,6 +56,124 @@ def load_prefix(directory):
 
 class PrefixReturnOperation(ReturnOperation):
     """Keep bounded recording, manual FIFO, cancellation and final-stop verification."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Reuse only the append-only event parser, never its automatic dispatch policy.
+        self.prefix_audit = AutoAdvance(self.source, self.identities[ODOM[0]][0])
+        self.next_dispatched = False
+        self.scan_wait_since = None
+        self.scan_wait_stamp = None
+        self.scan_wait_count = 0
+        self.scan_wait_fault = None
+
+    def stopped_boundary(self):
+        audit = self.prefix_audit
+        return (
+            audit.attached
+            and not audit.requested
+            and not audit.started
+            and not audit.complete
+            and not audit.failure
+            and not self.scan_wait_fault
+            and not self.cancelled
+            and not self.closing
+        )
+
+    def update_scan_wait(self, observed):
+        if self.scan_wait_fault:
+            raise RuntimeError(self.scan_wait_fault)
+        now = time.monotonic()
+        stamp = observed['samples'][SCAN]['stamp']
+        if not observed['scan_fresh'] and self.scan_wait_since is None:
+            self.scan_wait_since, self.scan_wait_stamp = now, stamp
+            self.scan_wait_count = 0
+        if self.scan_wait_since is None:
+            return
+        if now - self.scan_wait_since >= 2.0:
+            self.scan_wait_fault = 'Stopped scan wait exceeded 2 seconds; no retry'
+            raise RuntimeError(self.scan_wait_fault)
+        if not observed['scan_fresh']:
+            self.scan_wait_count = 0
+            self.scan_wait_stamp = stamp
+        elif stamp > self.scan_wait_stamp:
+            self.scan_wait_stamp = stamp
+            self.scan_wait_count += 1
+            if self.scan_wait_count >= 3:
+                self.scan_wait_since = None
+
+    def observe_feedback(self, rows):
+        if self.scan_wait_fault:
+            raise RuntimeError(self.scan_wait_fault)
+        self.prefix_audit.consume(rows)
+        if not self.stopped_boundary():
+            return super().observe_feedback(rows)
+        observed = self.probe.snapshot(
+            stopped=True, expected=self.identities, stopped_scan_wait=True
+        )
+        self.update_scan_wait(observed)
+        return observed
+
+    def next_dispatch_reason(self):
+        reason = super().next_dispatch_reason()
+        if reason is not None:
+            return reason
+        if not self.stopped_boundary():
+            return 'No audited stopped boundary for next'
+        observed = self.probe.snapshot(
+            stopped=True, expected=self.identities, stopped_scan_wait=True
+        )
+        self.update_scan_wait(observed)
+        if self.scan_wait_since is not None:
+            return 'Waiting for three fresh scan timestamps; next refused'
+        # Recheck all original motion-admission conditions immediately before dispatch.
+        self.probe.snapshot(stopped=True, expected=self.identities)
+        return super().next_dispatch_reason()
+
+    def before_dispatch(self, name):
+        if name == 'next':
+            if not self.stopped_boundary() or self.scan_wait_since is not None:
+                raise RuntimeError('Cannot dispatch next outside a ready stopped boundary')
+            self.next_dispatched = True
+            self.prefix_audit.requested = True
+            self.prefix_audit.requested_at = time.monotonic()
+
+    def save_state(self, rows):
+        self.prefix_audit.consume(rows)
+        super().save_state(rows)
+        self.state.update(
+            ready=self.state['ready'] and self.scan_wait_since is None and self.stopped_boundary(),
+            waiting_for_fresh_scan=self.scan_wait_since is not None,
+            scan_wait_started_monotonic=self.scan_wait_since,
+            scan_wait_new_frames=self.scan_wait_count,
+            next_dispatched=self.next_dispatched,
+        )
+        write_json(self.directory / 'control.json', self.state)
+
+    def verify_final_stop(self):
+        if (
+            self.runner is not None
+            and not self.next_dispatched
+            and self.prefix_audit.attached
+            and not self.prefix_audit.failure
+            and not self.prefix_audit.started
+            and self.probe.command_count == 0
+            and self.probe.last_command is None
+        ):
+            if self.runner.poll() is None:
+                raise RuntimeError('No-command stop requires owned child exit')
+            observed = self.probe.wait_no_command_stop(self.identities)
+            return dict(
+                zero_and_released=False,
+                stopped_and_released=observed is not None,
+                stop_evidence=dict(
+                    kind='stopped_without_motion_command',
+                    zero_command_observed=False,
+                    next_dispatched=False,
+                    observation=observed,
+                ),
+            )
+        return super().verify_final_stop()
 
     def build_command(self):
         return [

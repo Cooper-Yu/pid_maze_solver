@@ -8,9 +8,20 @@ ODOM = ('/odometry/filtered', '/rosbot_xl_base_controller/odom')
 SCAN = '/scan_filtered'
 
 
-def validate_feedback(samples, now_ros, now_mono, stopped):
+def validate_feedback(samples, now_ros, now_mono, stopped, *, stopped_scan_wait=False):
+    if stopped_scan_wait and not stopped:
+        raise ValueError('Scan waiting requires stopped feedback')
+    scan_fresh = True
     for topic in (*ODOM, SCAN):
         item = samples.get(topic)
+        if stopped_scan_wait and topic == SCAN and item is not None:
+            age = now_ros - item['stamp']
+            if not math.isfinite(age) or item['stamp'] <= 0 or age < -0.1:
+                raise RuntimeError(f'Missing/stale source timestamp: {topic}')
+            if item['valid_ranges'] < 20 or not item['frame']:
+                raise RuntimeError('Insufficient finite scan returns')
+            scan_fresh = age <= 0.5 and now_mono - item['receipt'] <= 0.5
+            continue
         if item is None or now_mono - item['receipt'] > 0.5:
             raise RuntimeError(f'Missing/stale receipt: {topic}')
         if not -0.1 <= now_ros - item['stamp'] <= 0.5:
@@ -24,6 +35,7 @@ def validate_feedback(samples, now_ros, now_mono, stopped):
                 raise RuntimeError('Robot is not stopped')
         elif item['valid_ranges'] < 20 or not item['frame']:
             raise RuntimeError('Insufficient finite scan returns')
+    return scan_fresh
 
 
 class Probe:
@@ -45,6 +57,7 @@ class Probe:
         self.node = rclpy.create_node('task6_read_only_preflight')
         self.samples, self.counts, self.failure = {}, {}, None
         self.last_command = None
+        self.command_count = 0
         self.last_check = None
         self.buffer = Buffer()
         self.listener = TransformListener(self.buffer, self.node)
@@ -98,6 +111,7 @@ class Probe:
         )
 
     def command(self, msg):
+        self.command_count += 1
         values = (
             msg.linear.x,
             msg.linear.y,
@@ -159,21 +173,27 @@ class Probe:
             },
             cmd_endpoints=self.endpoints('/cmd_vel'),
             last_command=self.last_command,
+            command_count=getattr(self, 'command_count', 0),
             latched_failure=self.failure,
             last_check=getattr(self, 'last_check', None),
         )
 
-    def snapshot(self, stopped=True, expected=None):
+    def snapshot(self, stopped=True, expected=None, *, stopped_scan_wait=False):
         self.last_check = dict(
             stopped=stopped,
             cmd_limit=0 if stopped else 1,
+            stopped_scan_wait=stopped_scan_wait,
             unix_time=time.time(),
             expected_gids=expected,
         )
         if self.failure:
             raise RuntimeError(self.failure)
-        validate_feedback(
-            self.samples, self.node.get_clock().now().nanoseconds / 1e9, time.monotonic(), stopped
+        scan_fresh = validate_feedback(
+            self.samples,
+            self.node.get_clock().now().nanoseconds / 1e9,
+            time.monotonic(),
+            stopped,
+            stopped_scan_wait=stopped_scan_wait,
         )
         gids = {topic: self.identities(topic) for topic in ODOM}
         if any(len(value) != 1 for value in gids.values()) or (
@@ -198,6 +218,7 @@ class Probe:
         return dict(
             samples=self.samples.copy(),
             counts=self.counts.copy(),
+            scan_fresh=scan_fresh,
             gids=gids,
             cmd_publishers=count,
             cmd_endpoints=deepcopy(endpoints),
@@ -246,6 +267,23 @@ class Probe:
                 )
                 return True
         return False
+
+    def wait_no_command_stop(self, expected, timeout=8):
+        """Observe stopped/released feedback without claiming a zero command was received."""
+        deadline = time.monotonic() + timeout
+        first = None
+        while time.monotonic() < deadline:
+            self.pump()
+            if self.command_count or self.last_command is not None:
+                return None
+            current = self.snapshot(stopped=True, expected=expected, stopped_scan_wait=True)
+            if first is None:
+                first = (time.monotonic(), current['counts'])
+            if time.monotonic() - first[0] >= 0.3 and all(
+                current['counts'][topic] >= first[1][topic] + 3 for topic in ODOM
+            ):
+                return current
+        return None
 
     def close(self):
         self.node.destroy_node()

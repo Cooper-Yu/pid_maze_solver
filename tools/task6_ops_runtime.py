@@ -202,15 +202,19 @@ class Operation:
         ):
             raise RuntimeError('No matching route_completed evidence')
 
+    def verify_final_stop(self):
+        zero = self.probe.wait_zero(self.identities) if self.runner is not None else True
+        return dict(zero_and_released=zero, stopped_and_released=zero)
+
     def cleanup(self):
         failures = []
         try:
             stop_child(self.runner, self.probe)
-            zero = self.probe.wait_zero(self.identities) if self.runner is not None else True
-            if not zero:
+            stop = self.verify_final_stop()
+            if not stop['stopped_and_released']:
                 failures.append('Final zero + publisher release + stopped feedback not verified')
         except Exception as error:
-            zero = False
+            stop = dict(zero_and_released=False, stopped_and_released=False)
             failures.append(str(error))
         for child in (self.recorder, self.watch):
             try:
@@ -228,7 +232,7 @@ class Operation:
                     failures.append('Recorder metadata file missing')
             except (OSError, ValueError) as error:
                 failures.append('Recorder close not verified: ' + str(error))
-        return dict(zero_and_released=zero, evidence=evidence, failures=failures)
+        return dict(**stop, evidence=evidence, failures=failures)
 
     def capture_failure(self, error):
         """Best-effort pre-cleanup evidence; diagnostic failure must never skip stopping."""

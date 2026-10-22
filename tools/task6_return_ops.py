@@ -138,6 +138,7 @@ class ReturnOperation(Operation):
         if reason is None and name == 'next':
             reason = self.next_dispatch_reason()
         if reason is None:
+            self.before_dispatch(name)
             if name == 'next':
                 if self.auto:
                     self.auto.mark_requested()
@@ -150,6 +151,12 @@ class ReturnOperation(Operation):
             id=ident, command=name, accepted=reason is None, reason=reason
         )
         self.save_state(rows)
+
+    def before_dispatch(self, name):
+        """Subclass hook after admission and before writing any child command."""
+
+    def observe_feedback(self, rows):
+        return self.probe.snapshot(stopped=False, expected=self.identities)
 
     def receive(self, rows):
         try:
@@ -251,9 +258,9 @@ class ReturnOperation(Operation):
         while self.runner.poll() is None:
             self.probe.pump()
             self.check_limits()
-            observed = self.probe.snapshot(stopped=False, expected=self.identities)
-            self.check_recording()
             rows = audit_rows(audit)
+            observed = self.observe_feedback(rows)
+            self.check_recording()
             self.save_state(rows)
             if self.auto and self.auto.complete:
                 break

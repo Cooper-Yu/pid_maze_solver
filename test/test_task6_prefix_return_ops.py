@@ -1,7 +1,7 @@
 """Prefix wrapper admission and manual lifecycle tests; no ROS nodes or motion."""
 
 from contextlib import nullcontext
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from io import StringIO
 import json
 from pathlib import Path
@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 import task6_prefix_return_ops as prefix
 from task6_ops import digest
 from task6_ops_runtime import write_json
-from task6_preflight import ODOM
+from task6_preflight import ODOM, SCAN
 from task6_return_ops import load_run
 
 
@@ -157,7 +157,16 @@ class PrefixTests(unittest.TestCase):
             self.assertIsNone(op.auto)
             self.assertIn('--laser-log-only', command)
             op.runner = SimpleNamespace(stdin=StringIO())
-            rows = [dict(event='return_session_started')]
+            rows = [
+                dict(
+                    event='return_session_started',
+                    source_session=source.session_id,
+                    source_hash=source.source_hash,
+                    source_origin=asdict(source.origin),
+                    publisher_gid=meta['gids'][ODOM[0]][0],
+                )
+            ]
+            op.probe.snapshot.return_value = dict(scan_fresh=True, samples={SCAN: dict(stamp=100)})
             op.save_state(rows)
             self.assertEqual(op.runner.stdin.getvalue(), '')
             op.request(dict(id='one', command='next', wall_s=time.time()), rows)
