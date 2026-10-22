@@ -54,7 +54,7 @@ public:
       [this](sensor_msgs::msg::LaserScan::SharedPtr m) { scan(*m); });
     timer_ = create_wall_timer(std::chrono::milliseconds(20), [this] { tick(); });
     RCLCPP_INFO(
-      get_logger(), "Task5: %d points; destination yaw preserved; distance PID=(%.2f,%.2f,%.2f)",
+      get_logger(), "Maze: %d points; destination yaw preserved; distance PID=(%.2f,%.2f,%.2f)",
       last_index_, kp, ki, kd);
   }
 
@@ -89,7 +89,11 @@ private:
     if (mode != "motion_steps" || !xy.empty())
       throw std::invalid_argument(
         "motion_steps rejects waypoint_xy; select fixed_points explicitly");
-    steps_ = maze::default_steps;
+    const auto direction = declare_parameter<std::string>("route_direction", "forward");
+    if (direction != "forward" && direction != "reverse")
+      throw std::invalid_argument("route_direction must be forward or reverse");
+    reverse_ = direction == "reverse";
+    steps_ = reverse_ ? maze::reverse_default_steps() : maze::default_steps;
     for (auto & step : steps_) {
       const auto prefix = "steps." + step.name + ".";
       step.turn =
@@ -137,7 +141,7 @@ private:
     stop();
     code_ = 2;
     RCLCPP_ERROR(
-      get_logger(), "%s point=P%02zu stage=%s", reason, index_ + 1,
+      get_logger(), "%s point=P%02zu stage=%s", reason, (reverse_ ? 15 - index_ : index_ + 1),
       final_turn_active_ ? "FINAL_TURN" : (moving_ ? "MOVE" : "TURN"));
     rclcpp::shutdown();
   }
@@ -256,11 +260,13 @@ private:
     stage_started_ = Clock::now();
     stage_ros_started_ = now();
     RCLCPP_INFO(
-      get_logger(), "Target P%02zu: x=%.6f y=%.6f yaw=%.6f; %s", index_ + 1, tx_, ty_, heading_,
+      get_logger(), "Target P%02zu: x=%.6f y=%.6f yaw=%.6f; %s",
+      (reverse_ ? 15 - index_ : index_ + 1), tx_, ty_, heading_,
       moving_ ? "MOVE with reused stop" : "TURN then MOVE");
     if (moving_) {
       RCLCPP_INFO(
-        get_logger(), "P%02zu MOVE (reused qualified stop; unchanged heading)", index_ + 1);
+        get_logger(), "P%02zu MOVE (reused qualified stop; unchanged heading)",
+        (reverse_ ? 15 - index_ : index_ + 1));
     }
   }
 
@@ -298,7 +304,9 @@ private:
     initialized_ = true;
     last_ = now();
     index_ = 1;
-    RCLCPP_INFO(get_logger(), "Route origin P01: x=%.6f y=%.6f yaw=%.6f", ox_, oy_, oyaw_);
+    RCLCPP_INFO(
+      get_logger(), "Route origin P%02d: x=%.6f y=%.6f yaw=%.6f", reverse_ ? 15 : 1, ox_, oy_,
+      oyaw_);
     target();
     return false;
   }
@@ -358,8 +366,8 @@ private:
       "TURN_SETTLING P%02zu stage=%s reason=%s | error=%.6f rad tol=0.010000 angle_ok=%d | "
       "measured_wz=%.6f limit=%.6f angular_ok=%d | linear_speed=%.6f limit=0.010000 "
       "linear_ok=%d | hold_ros=%.3f/%.3f s | stage_ros=%.3f stage_wall=%.3f s",
-      index_ + 1, final_turn_active_ ? "FINAL_TURN" : "TURN", reason, e, angle_ok, wz_,
-      turn_stop_yaw_rate_, angular_ok, linear_speed, linear_ok, held, stop_hold_,
+      (reverse_ ? 15 - index_ : index_ + 1), final_turn_active_ ? "FINAL_TURN" : "TURN", reason, e,
+      angle_ok, wz_, turn_stop_yaw_rate_, angular_ok, linear_speed, linear_ok, held, stop_hold_,
       (now() - stage_ros_started_).seconds(), elapsed(stage_started_));
   }
 
@@ -451,8 +459,8 @@ private:
     ty_ = nominal_ty_ + ny * center_offset_;
     RCLCPP_INFO_THROTTLE(
       get_logger(), *get_clock(), 1000,
-      "SIDE_CENTER P%02zu left=%.3f right=%.3f target_offset=%.3f m", index_ + 1, left.distance,
-      right.distance, center_offset_);
+      "SIDE_CENTER P%02zu left=%.3f right=%.3f target_offset=%.3f m",
+      (reverse_ ? 15 - index_ : index_ + 1), left.distance, right.distance, center_offset_);
   }
 
   /** @brief Bound cruise by segment policy, arrival distance and observed footprint clearance.
@@ -521,7 +529,8 @@ private:
     if (!safe(escape, true)) return false;
     pub_->publish(escape);
     RCLCPP_INFO_THROTTLE(
-      get_logger(), *get_clock(), 1000, "CLEARANCE adjustment before TURN P%02zu", index_ + 1);
+      get_logger(), *get_clock(), 1000, "CLEARANCE adjustment before TURN P%02zu",
+      (reverse_ ? 15 - index_ : index_ + 1));
     return true;
   }
 
@@ -573,10 +582,11 @@ private:
       reset();
       stage_started_ = Clock::now();
       stage_ros_started_ = now();
-      RCLCPP_INFO(get_logger(), "P%02zu MOVE", index_ + 1);
+      RCLCPP_INFO(get_logger(), "P%02zu MOVE", (reverse_ ? 15 - index_ : index_ + 1));
     } else {
       RCLCPP_INFO(
-        get_logger(), "Reached P%02zu: distance=%.6f heading_error=%.6f", index_ + 1, distance, e);
+        get_logger(), "Reached P%02zu: distance=%.6f heading_error=%.6f",
+        (reverse_ ? 15 - index_ : index_ + 1), distance, e);
       if (index_ + 1 >= static_cast<std::size_t>(last_index_)) {
         if (final_turn_enabled_ && static_cast<std::size_t>(last_index_) == route_.size()) {
           begin_final_turn();
@@ -635,7 +645,7 @@ private:
       if (!blocked_) {
         blocked_ = true;
         blocked_since_ = Clock::now();
-        RCLCPP_WARN(get_logger(), "OBSTACLE_HOLD P%02zu", index_ + 1);
+        RCLCPP_WARN(get_logger(), "OBSTACLE_HOLD P%02zu", (reverse_ ? 15 - index_ : index_ + 1));
       }
       if (recover_turn_clearance()) return;
       if (elapsed(blocked_since_) > 5) fail("OBSTACLE_BLOCKED");
@@ -645,7 +655,8 @@ private:
     pub_->publish(cmd);
     RCLCPP_INFO_THROTTLE(
       get_logger(), *get_clock(), 1000,
-      "P%02zu %s distance=%.3f yaw_error=%.3f cmd=(%.3f,%.3f,%.3f)", index_ + 1,
+      "P%02zu %s distance=%.3f yaw_error=%.3f cmd=(%.3f,%.3f,%.3f)",
+      (reverse_ ? 15 - index_ : index_ + 1),
       final_turn_active_ ? "FINAL_TURN" : (moving_ ? "MOVE" : "TURN"), distance, e, cmd.linear.x,
       cmd.linear.y, cmd.angular.z);
   }
@@ -713,6 +724,7 @@ private:
   double stage_timeout_{};  ///< Steady stage deadline, seconds.
   int last_index_{15};      ///< One-based final route point.
   int code_{};              ///< Process failure code; zero on normal completion.
+  bool reverse_{false};     ///< Reverse route uses P15 as origin and counts destinations down.
   std::size_t index_{1};    ///< Zero-based active destination; P01 is the origin.
   bool have_odom_{};        ///< True after accepting at least one odom message.
   bool have_scan_{};        ///< True after accepting a TF-transformed scan.

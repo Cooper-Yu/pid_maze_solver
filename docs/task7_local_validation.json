@@ -1,0 +1,147 @@
+{
+  "environment": "WSL Ubuntu-22.04 Humble/Gazebo Fortress localhost domain194",
+  "sequence": "Task5 scene1 with final half-turn -> scene3 in SAME simulator",
+  "reset_or_teleport": false,
+  "return_position_error_m": 0.029005367725411887,
+  "return_heading_error_from_opposite_P01_rad": 0.009452218644863808,
+  "task_handoff_position_drift_m": 0.00010151094300506433,
+  "task_handoff_heading_drift_rad": 0.0007563353367988686,
+  "engineering_limits": {
+    "position_m": 0.04,
+    "heading_rad": 0.03
+  },
+  "official_scoring": false,
+  "collision_evidence": "Existing simulator contact classifier; live packet/floor growth required in both phases",
+  "telemetry_pose_basis": "filtered odometry; not independent absolute metrology",
+  "task5": {
+    "scene": 1,
+    "exit_code": 0,
+    "reached": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "expected_points": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "completed": true,
+    "duration_wall_s": 97.13859415054321,
+    "origin": {
+      "x": 0.0,
+      "y": 0.0,
+      "yaw": 0.002279
+    },
+    "final_odom": {
+      "x": 0.10404877276864088,
+      "y": 0.547170581807824,
+      "yaw": 0.010756664663201132
+    },
+    "max_stopped_position_error_m": 0.013065,
+    "max_stopped_heading_error_rad": 0.000871,
+    "terminal_command": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "odom_messages": 1963,
+    "command_messages": 4845,
+    "cmd_publisher_count_after": 0,
+    "contacts": {
+      "packets": 100952,
+      "floor_points": 835238,
+      "wall_points": 0
+    },
+    "obstacle_hold_entries": 0,
+    "final_clockwise_turn": true
+  },
+  "task7": {
+    "scene": 3,
+    "exit_code": 0,
+    "reached": [
+      14,
+      13,
+      12,
+      11,
+      10,
+      9,
+      8,
+      7,
+      6,
+      5,
+      4,
+      3,
+      2,
+      1
+    ],
+    "expected_points": [
+      14,
+      13,
+      12,
+      11,
+      10,
+      9,
+      8,
+      7,
+      6,
+      5,
+      4,
+      3,
+      2,
+      1
+    ],
+    "completed": true,
+    "duration_wall_s": 83.77837038040161,
+    "origin": {
+      "x": 0.10395,
+      "y": 0.547194,
+      "yaw": 0.011513
+    },
+    "final_odom": {
+      "x": 0.02706014279999435,
+      "y": -0.01044318095841873,
+      "yaw": -3.1298614349449294
+    },
+    "max_stopped_position_error_m": 0.01278,
+    "max_stopped_heading_error_rad": 0.000791,
+    "terminal_command": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "odom_messages": 1695,
+    "command_messages": 4116,
+    "cmd_publisher_count_after": 0,
+    "contacts": {
+      "packets": 86921,
+      "floor_points": 719530,
+      "wall_points": 0
+    },
+    "obstacle_hold_entries": 0,
+    "final_clockwise_turn": false
+  },
+  "passed": true
+}

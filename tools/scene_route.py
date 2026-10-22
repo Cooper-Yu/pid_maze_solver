@@ -1,4 +1,4 @@
-"""Strict scene files and fixed-P01 route validation; no ROS or motion side effects."""
+"""Strict simulation scene files and fixed-P01 real-route validation; no ROS or motion side effects."""
 
 import math
 from pathlib import Path
@@ -6,6 +6,8 @@ from pathlib import Path
 import yaml
 
 STEP_NAMES = tuple(f'P{i:02d}_P{i + 1:02d}' for i in range(1, 15))
+REVERSE_STEP_NAMES = tuple(f'P{i:02d}_P{i - 1:02d}' for i in range(15, 1, -1))
+SCENE_FRAMES = {1: 'P01', 2: 'P01', 3: 'P15'}
 TURN_AFTER = {3, 10, 11, 12, 13, 14}
 ACTION_NAMES = tuple(
     name
@@ -68,10 +70,12 @@ def validate_step(name, step):
     return result
 
 
-def validate_sim(data):
+def validate_sim(data, scene=1):
+    if scene not in (1, 3):
+        raise ValueError('Unsupported simulation scene')
     params = mapping(data.get('parameters'), 'parameters')
     if params.get('route_mode') != 'motion_steps':
-        raise ValueError('Scene 1 file must preserve the Task5 motion_steps policy')
+        raise ValueError(f'Scene {scene} file must preserve the motion_steps policy')
     allowed = {
         'route_mode',
         'steps',
@@ -90,21 +94,26 @@ def validate_sim(data):
         'turn_ki',
         'turn_kd',
     }
+    if scene == 3:
+        allowed.add('route_direction')
+        if params.get('route_direction') != 'reverse':
+            raise ValueError('Scene 3 requires route_direction: reverse')
     if params.keys() - allowed:
-        raise ValueError('Unknown scene 1 parameter')
+        raise ValueError(f'Unknown scene {scene} parameter')
     for key, value in params.items():
         if key in ('final_clockwise_turn', 'side_centering'):
             if type(value) is not bool:
                 raise ValueError(f'{key} must be boolean')
-        elif key not in ('route_mode', 'steps'):
+        elif key not in ('route_mode', 'steps', 'route_direction'):
             v = number(value, key)
             if v < 0 or (not key.endswith(('_ki', '_kd')) and v == 0):
                 raise ValueError(f'{key} must be positive (I/D may be zero)')
     steps = mapping(params.get('steps'), 'steps')
-    if set(steps) != set(STEP_NAMES):
-        raise ValueError('Scene 1 requires the complete ordered Task5 step names')
-    params = dict(params, steps={name: validate_step(name, steps[name]) for name in STEP_NAMES})
-    return dict(schema=1, scene=1, frame='P01', parameters=params)
+    names = STEP_NAMES if scene == 1 else REVERSE_STEP_NAMES
+    if set(steps) != set(names):
+        raise ValueError(f'Scene {scene} requires the complete ordered step names')
+    params = dict(params, steps={name: validate_step(name, steps[name]) for name in names})
+    return dict(schema=1, scene=scene, frame=SCENE_FRAMES[scene], parameters=params)
 
 
 def validate_action(action, position, heading):
@@ -162,18 +171,26 @@ def validate_real(data):
 
 
 def load_scene(path, scene):
+    if type(scene) is not int or scene not in SCENE_FRAMES:
+        raise ValueError('Unsupported scene; scene 4 is not implemented')
     data = yaml.load(Path(path).read_text(), Loader=UniqueLoader)
     mapping(data, 'scene file')
     if type(data.get('schema')) is not int or data['schema'] != 1:
         raise ValueError('Expected schema 1')
-    if type(data.get('scene')) is not int or data['scene'] != scene or data.get('frame') != 'P01':
-        raise ValueError('Scene selection and fixed P01 frame must match the file')
+    if (
+        type(data.get('scene')) is not int
+        or data['scene'] != scene
+        or data.get('frame') != SCENE_FRAMES[scene]
+    ):
+        raise ValueError(
+            f'Scene selection and fixed {SCENE_FRAMES[scene]} frame must match the file'
+        )
     allowed = {'schema', 'scene', 'frame', 'source'} | (
-        {'parameters'} if scene == 1 else {'validated', 'test_until', 'actions'}
+        {'parameters'} if scene in (1, 3) else {'validated', 'test_until', 'actions'}
     )
     if data.keys() - allowed:
         raise ValueError('Unknown scene file field')
-    return validate_sim(data) if scene == 1 else validate_real(data)
+    return validate_sim(data, scene) if scene in (1, 3) else validate_real(data)
 
 
 def select_real(route, destination='P15', execute=False):

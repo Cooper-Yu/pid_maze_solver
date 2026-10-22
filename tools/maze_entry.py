@@ -24,11 +24,14 @@ def package_directory(package, kind):
 
 
 def default_file(scene):
+    files = {1: 'waypoints_sim.yaml', 2: 'waypoints_real.yaml', 3: 'reverse_waypoints_sim.yaml'}
+    if scene not in files:
+        raise ValueError('Unsupported scene; scene 4 is not implemented')
     source = Path(__file__).resolve().parent.parent / 'waypoints'
     base = (
         source if source.is_dir() else package_directory('pid_maze_solver', 'share') / 'waypoints'
     )
-    return base / ('waypoints_sim.yaml' if scene == 1 else 'waypoints_real.yaml')
+    return base / files[scene]
 
 
 def executable(package, name):
@@ -55,8 +58,8 @@ def parse_args(argv):
         split = values.index('--ros-args')
         values, ros_args = values[:split], values[split:]
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('scene', nargs='?', type=int, choices=(1, 2), default=1)
-    parser.add_argument('--waypoints', type=Path)
+    parser.add_argument('scene', nargs='?', type=int, choices=(1, 2, 3), default=1)
+    parser.add_argument('--waypoints', '--route-file', dest='waypoints', type=Path)
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--destination')
     parser.add_argument(
@@ -68,12 +71,12 @@ def parse_args(argv):
     parser.add_argument('--turn-speed', type=bounded_value(0.02, 0.60))
     parser.add_argument('--output', type=Path)
     args = parser.parse_args(values)
-    if args.scene == 2 and ros_args:
-        parser.error('Scene 2 does not accept unchecked ROS overrides')
-    if args.scene == 1 and any(
+    if args.scene in (2, 3) and ros_args:
+        parser.error(f'Scene {args.scene} does not accept unchecked ROS overrides')
+    if args.scene in (1, 3) and any(
         (args.destination, args.speed, args.turn_speed, args.output, args.supervised)
     ):
-        parser.error('Destination/speed/output are scene 2 options; scene 1 retains ROS arguments')
+        parser.error('Destination/speed/output/supervised are scene 2 options')
     return args, ros_args
 
 
@@ -124,13 +127,17 @@ def run_owned(command):
 
 
 def backend_command(args, route_file, ros_args):
-    if args.scene == 1:
+    if args.scene not in (1, 2, 3):
+        raise ValueError('Unsupported scene; scene 4 is not implemented')
+    if args.scene in (2, 3) and ros_args:
+        raise ValueError(f'Scene {args.scene} does not accept unchecked ROS overrides')
+    if args.scene in (1, 3):
         return [
             executable('pid_maze_solver', 'pid_maze_solver_task5'),
             '--ros-args',
             '--params-file',
             str(route_file),
-            *ros_args[1:],
+            *(ros_args[1:] if args.scene == 1 else ['-p', 'use_sim_time:=true']),
         ]
     command = [
         executable('distance_controller', 'task6_route_runner'),

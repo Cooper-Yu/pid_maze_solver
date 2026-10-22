@@ -171,3 +171,19 @@ TEST(Motion, ClockwiseHalfTurnKeepsDirectionAcrossBranchCutAndInitialNoise)
   EXPECT_NEAR(-M_PI - progress, 0, 1e-12);
   EXPECT_GT(-M_PI - (progress - .02), 0);
 }
+
+TEST(Motion, ReverseRetracesForwardGeometryAfterTerminalHalfTurn)
+{
+  const auto forward = maze::generate_route(maze::default_steps);
+  const auto steps = maze::reverse_default_steps();
+  const auto reverse = maze::generate_route(steps);
+  EXPECT_EQ(steps.front().name, "P15_P14");
+  EXPECT_EQ(steps.back().name, "P02_P01");
+  EXPECT_DOUBLE_EQ(steps.front().turn, 0);
+  for (std::size_t i = 0; i < reverse.size(); ++i) {
+    const auto & expected = forward[forward.size() - 1 - i];
+    EXPECT_NEAR(reverse[i].x + forward.back().x, expected.x, 1e-12);
+    EXPECT_NEAR(reverse[i].y + forward.back().y, expected.y, 1e-12);
+  }
+  EXPECT_NEAR(maze::wrap(reverse.back().yaw - M_PI), 0, 1e-12);
+}

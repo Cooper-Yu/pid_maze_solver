@@ -43,6 +43,24 @@ inline const std::vector<MotionStep> default_steps{
   {"P14_P15", M_PI / 4, .6134974746830583, -.0494974746830583},
 };
 
+/** @brief Reverse the default geometry after Task5's final clockwise half-turn.
+ * @return P15-to-P01 actions facing opposite each original translation heading.
+ * @note Turn belongs to the following reversed leg, since each action turns before moving.
+ */
+inline std::vector<MotionStep> reverse_default_steps()
+{
+  std::vector<MotionStep> result;
+  for (std::size_t j = default_steps.size(); j > 0; --j) {
+    auto step = default_steps[j - 1];
+    const auto from = j + 1;
+    step.name = "P" + std::string(from < 10 ? "0" : "") + std::to_string(from) + "_P" +
+                std::string(j < 10 ? "0" : "") + std::to_string(j);
+    step.turn = j == default_steps.size() ? 0 : -default_steps[j].turn;
+    result.push_back(step);
+  }
+  return result;
+}
+
 /** @brief Generate nominal poses cumulatively from relative actions at a zero route origin.
  * @par Input to target flow
  * PIDMazeSolver reads named step parameters once, calls this function, then anchors these

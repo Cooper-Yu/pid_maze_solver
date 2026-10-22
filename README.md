@@ -1,8 +1,9 @@
 # PID Maze Solver — scene entry
 
-The official executable now selects a scene: `1` retains the Task5 C++ controller;
+The official executable selects a scene: `1` retains the Task5 motion policy;
 `2` loads the fixed-P01 Task6 action file and delegates to the noninteractive
-`distance_controller/task6_route_runner` backend. Omitting the scene retains `1`.
+`distance_controller/task6_route_runner` backend; `3` runs the Task7 simulation return using
+the same C++ controller. Omitting the scene retains `1`.
 The scene files are installed under `share/pid_maze_solver/waypoints/` and are
 actually used to configure execution, not just checked for existence.
 
@@ -19,7 +20,7 @@ the route or obstacle clearance. The points, headings, gains and 4 cm turn-drift
 limit are unchanged. `--destination P12` still selects the tested prefix.
 See [scene contracts and checks](docs/scenes.md).
 
-The Task5 C++ control source, historical tag, and scene 1 motion policy are
+The Task5 historical tag, PID control algorithm, and scene 1 motion policy are
 unchanged. Scene 2 does not inherit Task5's 6 cm automatic clearance translation,
 self-return mask, 15 mm position tolerance, or default final half-turn. Its shared
 backend retains the existing preparation, motion guards and audit stream.
@@ -172,3 +173,28 @@ Use [Task6 operations](docs/task6_operations.md) for the installed `task6_run`
 prepare/preflight/explicit-run workflow, version manifest, fresh P01 requirement,
 recording health, booking cutoff and cleanup checks. It defaults to the P12
 engineering prefix and does not change the existing scene1/scene2 controller policy.
+
+## Scene 3 / Task7 simulation return
+
+```bash
+ros2 run pid_maze_solver pid_maze_solver 3 --dry-run
+ros2 run pid_maze_solver pid_maze_solver 3
+```
+
+Scene 3 loads `waypoints/reverse_waypoints_sim.yaml` and reuses the simulation
+PID controller, footprint guard, stale-feedback stop and bounded stage timeouts.
+Start stopped at Task5's P15 **after its final clockwise half-turn**, with the same
+physical heading as the original P01. Startup anchors the current pose as P15;
+it does not locate or drive to that start. It returns through P14..P01 and ends
+facing opposite the original P01 heading, without an additional terminal turn.
+
+Each reversed leg faces opposite the corresponding outbound leg. Since an action
+turns before translating, its turn comes from the next outbound leg in reversed
+order; simply reversing and negating each original turn does not retrace the maze.
+Forward/left body distances keep their values with the opposite heading.
+
+Use `--route-file PATH` (alias `--waypoints`) to supply a fully validated scene-3
+YAML. Scene 3 rejects unchecked ROS overrides and forces simulation time. Scene 1
+and scene 2 keep their existing configuration contracts. Scene 4 / Task8 hardware
+return is not implemented or authorized by this simulation task. Task7 does not
+provide recovery after a real robot's odometry reset.

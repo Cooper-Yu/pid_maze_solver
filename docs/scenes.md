@@ -3,7 +3,7 @@
 ## Entry and data ownership
 
 `tools/maze_entry.py` is installed as the public `pid_maze_solver` executable.
-The unchanged C++ target is installed internally as `pid_maze_solver_task5`.
+The shared C++ target is installed internally as `pid_maze_solver_task5`.
 `tools/scene_route.py` loads YAML with duplicate-key rejection and validates the
 selected scene before starting any backend. `--dry-run` never resolves or starts
 a motion executable and prints the resolved file-derived data.
@@ -97,3 +97,20 @@ No restart/resume or old-session loading is provided. The normal noninteractive
 entry is unchanged. This mode is local engineering support, not validated physical
 P12-to-P01 recovery; strict missing-ray stops remain. See the backend package's
 `docs/route_session.md` for the contract and evidence boundary.
+
+## Scene 3 / simulation reverse contract
+
+`reverse_waypoints_sim.yaml` requires scene=3, frame=P15 and
+`parameters.route_direction=reverse`. All fourteen step namespaces P15_P14 through
+P02_P01 are required and normalized into traversal order. The same C++ controller
+selects reverse defaults/labels; all PID, TF/scan, stale-feedback, collision and
+settling code is shared. This entry forces `use_sim_time=true` and rejects unchecked
+ROS overrides; change a complete validated YAML through `--route-file` instead.
+
+Start at a stopped Task5 P15 after its final clockwise half-turn, without reset or
+repositioning. The first accepted stopped pose anchors the relative route. Startup
+is not localization: an arbitrary pose is not evidence that P15 has been reached.
+Scene 3 retraces nominal Task5 geometry with headings opposite each outbound leg.
+Its final P01 heading differs by pi from the original start. The shipped route
+has no terminal half-turn. Scene 4 is rejected before a backend is started; no
+hardware return or odometry-reset recovery is implied by this simulation route.

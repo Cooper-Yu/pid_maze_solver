@@ -1,0 +1,83 @@
+schema: 1
+scene: 3
+frame: P15
+source: Task7 reverse of Task5 geometry. Start at completed Task5 P15 after its clockwise
+  half-turn; finish P01 facing opposite its original heading.
+parameters:
+  route_mode: motion_steps
+  route_direction: reverse
+  final_clockwise_turn: false
+  side_centering: true
+  steps:
+    P15_P14:
+      max_speed: 0.24
+      turn_deg: 0.0
+      forward_m: 0.6134974746830583
+      left_m: -0.0494974746830583
+    P14_P13:
+      max_speed: 0.12
+      turn_deg: -45.0
+      forward_m: 0.378
+      left_m: 0.0
+    P13_P12:
+      max_speed: 0.24
+      turn_deg: 45.0
+      forward_m: 0.528
+      left_m: 0.0
+    P12_P11:
+      max_speed: 0.2
+      turn_deg: -0.0
+      forward_m: 0.0
+      left_m: 0.256
+    P11_P10:
+      max_speed: 0.24
+      turn_deg: -0.0
+      forward_m: 0.441
+      left_m: 0.0
+    P10_P09:
+      max_speed: 0.24
+      turn_deg: -90.0
+      forward_m: 0.796
+      left_m: 0.06
+      side_centering: false
+    P09_P08:
+      max_speed: 0.2
+      turn_deg: -0.0
+      forward_m: 0.0
+      left_m: -0.615
+    P08_P07:
+      max_speed: 0.2
+      turn_deg: -0.0
+      forward_m: 0.55
+      left_m: 0.0
+      side_centering: false
+    P07_P06:
+      max_speed: 0.2
+      turn_deg: -0.0
+      forward_m: 0.0
+      left_m: -0.37
+    P06_P05:
+      max_speed: 0.24
+      turn_deg: -0.0
+      forward_m: 0.5
+      left_m: -0.03
+    P05_P04:
+      max_speed: 0.24
+      turn_deg: -90.0
+      forward_m: 0.46
+      left_m: -0.012
+    P04_P03:
+      max_speed: 0.24
+      turn_deg: -90.0
+      forward_m: 1.15
+      left_m: 0.03
+    P03_P02:
+      max_speed: 0.12
+      turn_deg: 45.0
+      forward_m: 0.21
+      left_m: 0.0
+    P02_P01:
+      max_speed: 0.24
+      turn_deg: 45.0
+      forward_m: 0.35
+      left_m: 0.0
