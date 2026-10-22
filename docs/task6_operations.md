@@ -156,3 +156,31 @@ its final observed command was zero and graph publisher count zero, but the
 strict cleanup stopped-feedback flag remained false because scan was still
 missing. All three recorder metadata files closed. These are synthetic ROS
 lifecycle checks, not real robot motion or obstacle-avoidance acceptance.
+
+Probe callback processing retains its original single `spin_once(timeout_sec=.05)`
+then makes at most 16 additional `timeout_sec=0` calls. A two-millisecond
+monotonic drain budget prevents starting another call once exhausted. A callback
+already executing cannot be preempted; neither this nor the original .05-second
+spin is a hard real-time duration guarantee. No drain call waits for future data.
+Source/receipt ages are still evaluated at the actual subsequent check time,
+with the unchanged .5-second limit and all latched faults preserved.
+`failure_snapshot.probe.last_pump` records total/drain elapsed seconds, additional
+spin attempts and monitored callback count. Attempts are not necessarily executed
+callbacks; the monitored count includes odom/scan/cmd but excludes TF/executor work.
+
+This addresses a possible local ready-queue delay only. In coop122450, the cached
+scan source stamp matched the preceding recorded filtered frame and two newer raw
+frames lacked recorded filtered counterparts before the fault. The queue change
+does not establish that this incident was a false positive or repair the observed
+filtered gap. It does not switch to raw scans or automatically resume motion.
+
+Local verification: `bash /tmp/check_probe_pump.bash` under Ubuntu-22.04/Humble
+ran 43 pure tests and `ROS_DOMAIN_ID=194 ROS_LOCALHOST_ONLY=1 timeout 20s python3
+test/verify_task6_probe_pump.py`. Report:
+`/tmp/task6_probe_pump/1792672459081074346/report.json`. Real executor first
+processed filtered odom, then raw odom and the already queued scan during the
+nonblocking drain. Persistent scan loss still failed the original receipt check.
+A continuously retriggered guard callback exited the drain after 3 calls; measured
+drain times across the cases were 2.026/1.873/2.103 ms. These small overruns include
+completion of an already started callback, not an added waiting allowance.
+Synthetic localhost checks do not prove cloud scheduling or filtered availability.

@@ -6,6 +6,8 @@ import time
 
 ODOM = ('/odometry/filtered', '/rosbot_xl_base_controller/odom')
 SCAN = '/scan_filtered'
+PUMP_DRAIN_MAX_CALLS = 16
+PUMP_DRAIN_BUDGET_S = 0.002
 
 
 def validate_feedback(samples, now_ros, now_mono, stopped, *, stopped_scan_wait=False):
@@ -59,6 +61,7 @@ class Probe:
         self.last_command = None
         self.command_count = 0
         self.last_check = None
+        self.last_pump = None
         self.buffer = Buffer()
         self.listener = TransformListener(self.buffer, self.node)
         for topic in ODOM:
@@ -123,7 +126,24 @@ class Probe:
         self.last_command = dict(values=values, receipt=time.monotonic())
 
     def pump(self):
+        """Process ready work before checking age; never wait during the bounded drain."""
+        started = time.monotonic()
+        before = sum(self.counts.values()) + self.command_count
         self.ros.spin_once(self.node, timeout_sec=0.05)
+        drain_started = time.monotonic()
+        calls = 0
+        while calls < PUMP_DRAIN_MAX_CALLS:
+            if time.monotonic() - drain_started >= PUMP_DRAIN_BUDGET_S:
+                break
+            self.ros.spin_once(self.node, timeout_sec=0.0)
+            calls += 1
+        ended = time.monotonic()
+        self.last_pump = dict(
+            elapsed_s=ended - started,
+            drain_elapsed_s=ended - drain_started,
+            drain_spin_calls=calls,
+            monitored_callbacks=sum(self.counts.values()) + self.command_count - before,
+        )
 
     def identities(self, topic):
         return sorted(
@@ -176,6 +196,7 @@ class Probe:
             command_count=getattr(self, 'command_count', 0),
             latched_failure=self.failure,
             last_check=getattr(self, 'last_check', None),
+            last_pump=getattr(self, 'last_pump', None),
         )
 
     def snapshot(self, stopped=True, expected=None, *, stopped_scan_wait=False):
