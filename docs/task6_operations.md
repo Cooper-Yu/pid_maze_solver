@@ -198,3 +198,19 @@ P01 preparation, including the observation-only terminal half-turn. Enforced
 supervised guards and preparation remain strict. This is not obstacle avoidance.
 Full success requires canonical destination P15 and explicit completed
 P15_after_turn evidence; preparation accepts either destination spelling.
+
+## P10 forward-offset candidate (2026-10-22)
+
+`scan_grace_20261022_153333` reached P10, then stopped while turning right at
+about -47 degrees when filtered-odom center drift crossed 4cm. The operator
+could not confirm contact; a photograph shows the slanted robot near a wall end,
+which does not prove collision or its cause. Cleanup and evidence closure passed.
+The candidate advances P10 by 0.020m along its existing -pi/2 heading: fixed-P01
+XY changes from (1.3549013479064715,-1.8855925989094273) to
+(1.3549013479064715,-1.9055925989094273). P09 and P11 endpoints, all other targets
+and turn headings are unchanged. P09->P10 and P10->P11 are reinterpolated with
+spacing <=5cm (8/10 points). This aims to clear the rear of the wall corner before
+turning; it is a hardware-unverified candidate, not a confirmed collision repair.
+All speed, scan policy and 4cm drift limits remain. Restart near verified P01;
+no partial-turn resume or old odom reference. Task8 geometry must be regenerated
+from the final accepted forward route before it can be integrated for execution.
