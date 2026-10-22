@@ -69,6 +69,33 @@ def recorder_health(root, previous=None):
     return session, data
 
 
+class StartupScanWait:
+    """Bound one stopped scan outage; fresh timestamps, not loop ticks, recover it."""
+
+    def __init__(self):
+        self.started = None
+        self.last_stamp = None
+        self.fresh_count = 0
+
+    def ready(self, snapshot, now):
+        stamp = snapshot['samples'][SCAN]['stamp']
+        if not snapshot['scan_fresh'] and self.started is None:
+            self.started, self.last_stamp = now, stamp
+        if self.started is None:
+            return True
+        if now - self.started >= 2.0:
+            raise RuntimeError('Evidence startup scan wait exceeded 2 seconds')
+        if not snapshot['scan_fresh']:
+            self.last_stamp, self.fresh_count = stamp, 0
+        elif stamp > self.last_stamp:
+            self.last_stamp = stamp
+            self.fresh_count += 1
+        if self.fresh_count < 3:
+            return False
+        self.started, self.last_stamp, self.fresh_count = None, None, 0
+        return True
+
+
 class Operation:
     def __init__(self, directory, config, probe, identities):
         self.directory, self.config, self.probe, self.identities = (
@@ -129,25 +156,34 @@ class Operation:
             self.directory / 'watch.log',
         )
         deadline, first = time.monotonic() + 18, None
+        scan_wait = StartupScanWait()
         while time.monotonic() < deadline:
             self.probe.pump()
             self.check_limits()
-            self.probe.snapshot(expected=self.identities)
+            observed = self.probe.snapshot(
+                stopped=True, expected=self.identities, stopped_scan_wait=True
+            )
+            scan_ready = scan_wait.ready(observed, time.monotonic())
             self.require_evidence_alive()
             try:
                 session, health = recorder_health(self.directory / 'evidence')
                 if first is None:
                     first = health
-                elif health['unix_time'] != first['unix_time']:
-                    recorder_health(self.directory / 'evidence', first['message_counts'])
-                    self.recorder_session, self.last_health = session, health
-                    self.last_growth = time.monotonic()
-                    return
+                    continue
+                if health['unix_time'] == first['unix_time']:
+                    continue
+                recorder_health(self.directory / 'evidence', first['message_counts'])
             except (FileNotFoundError, json.JSONDecodeError):
                 continue
             except RuntimeError:
                 if first is not None:
                     raise
+                continue
+            if scan_ready:
+                self.probe.snapshot(stopped=True, expected=self.identities)
+                self.recorder_session, self.last_health = session, health
+                self.last_growth = time.monotonic()
+                return
         raise RuntimeError('Recorder did not prove required topic growth before motion')
 
     def require_evidence_alive(self):
@@ -184,6 +220,8 @@ class Operation:
         ]
         write_json(self.directory / 'motion_command.json', command)
         self.phase = 'official_runner'
+        self.check_limits()
+        self.probe.snapshot(stopped=True, expected=self.identities)
         self.runner = spawn(command, self.directory / 'motion.log')
         while self.runner.poll() is None:
             self.probe.pump()

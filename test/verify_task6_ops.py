@@ -39,6 +39,25 @@ def child(directory, support, installed):
     probe = Probe()
     try:
         initial = probe.ready()
+        snapshot = probe.snapshot
+
+        def observe(**kwargs):
+            result = snapshot(**kwargs)
+            with (directory / 'scan_checks.jsonl').open('a') as output:
+                output.write(
+                    json.dumps(
+                        dict(
+                            at=time.monotonic(),
+                            wait=kwargs.get('stopped_scan_wait', False),
+                            fresh=result['scan_fresh'],
+                            stamp=result['samples']['/scan_filtered']['stamp'],
+                        )
+                    )
+                    + '\n'
+                )
+            return result
+
+        probe.snapshot = observe
         config = dict(
             support=support,
             max_seconds=30,
@@ -54,7 +73,7 @@ def child(directory, support, installed):
         probe.close()
 
 
-def run_case(root, mode, support, installed):  # noqa: PLR0915 - keep synthetic process cleanup with fixture
+def run_case(root, mode, support, installed):  # noqa: PLR0912, PLR0915 - keep injection cases and cleanup together
     import rclpy
     from geometry_msgs.msg import TransformStamped, Twist
     from nav_msgs.msg import Odometry
@@ -94,6 +113,8 @@ def run_case(root, mode, support, installed):  # noqa: PLR0915 - keep synthetic 
     deadline = time.monotonic() + 35
     injected = False
     fresh = True
+    scan_pause = None
+    injection = None
     try:
         while process.poll() is None and time.monotonic() < deadline:
             msg = Odometry()
@@ -112,7 +133,19 @@ def run_case(root, mode, support, installed):  # noqa: PLR0915 - keep synthetic 
             laser.range_min = 0.05
             laser.range_max = 10.0
             laser.ranges = [1.0] * 360
-            scan.publish(laser)
+            now = time.monotonic()
+            if (
+                mode.startswith('startup_')
+                and scan_pause is None
+                and (directory / 'watch.log').exists()
+            ):
+                scan_pause = now
+                injection = dict(started=now, kind=mode)
+            pause = scan_pause is not None and now - scan_pause < (
+                1.0 if mode == 'startup_recover' else 4.0
+            )
+            if not pause and not (mode == 'active_scan_loss' and injected):
+                scan.publish(laser)
             image = CompressedImage()
             image.header.stamp = msg.header.stamp
             image.header.frame_id = 'synthetic_camera'
@@ -128,10 +161,31 @@ def run_case(root, mode, support, installed):  # noqa: PLR0915 - keep synthetic 
                     filtered = node.create_publisher(Odometry, '/odometry/filtered', 10)
                 elif mode == 'feedback_loss':
                     fresh = False
-                injected = mode != 'success'
+                injected = mode not in ('success', 'startup_recover', 'startup_timeout')
         process.wait(timeout=3)
         result = json.loads((directory / 'result.json').read_text())
-        assert result['success'] == (mode == 'success'), result
+        assert result['success'] == (mode in ('success', 'startup_recover')), result
+        if mode == 'startup_timeout':
+            assert 'scan wait exceeded 2 seconds' in result['error'], result
+            assert not commands and not (directory / 'motion_command.json').exists()
+            assert result['cleanup']['evidence']['closed_metadata'], result
+            assert not node.get_publishers_info_by_topic('/cmd_vel')
+            (directory / 'injection.json').write_text(json.dumps(injection))
+            print(mode, 'PASS', directory, flush=True)
+            return
+        if mode == 'startup_recover':
+            checks = [
+                json.loads(row)
+                for row in (directory / 'scan_checks.jsonl').read_text().splitlines()
+            ]
+            bad = [index for index, row in enumerate(checks) if row['wait'] and not row['fresh']]
+            assert bad, checks
+            recovered = []
+            for row in checks[bad[-1] + 1 :]:
+                if not row['wait']:
+                    break
+                recovered.append(row['stamp'])
+            assert len(set(recovered)) >= 3, recovered
         command = json.loads((directory / 'motion_command.json').read_text())
         assert command[command.index('--speed') + 1] == '0.12'
         assert command[command.index('--turn-speed') + 1] == '0.2'

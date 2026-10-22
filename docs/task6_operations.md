@@ -66,6 +66,18 @@ and image counts, plus at least one static TF message. The monitor records comma
 control the robot. Camera images are retained at at most 2 Hz, with an explicit
 180 MiB recorder cap. This is not full-rate video or proof of camera viewpoint.
 
+Before the official runner exists, evidence startup may wait up to two monotonic
+seconds for an already observed scan whose source/receipt age exceeds .5 seconds.
+This requires fresh stopped dual odometry in the original GIDs, no command
+publisher, valid scan structure and a resolvable laser TF on every check. Three
+strictly increasing fresh scan timestamps recover the wait; duplicate timestamps
+do not count and another bad frame clears the count without extending the deadline.
+The original 18-second evidence startup deadline and recorder-growth requirements
+remain. Any odometry, identity, command-publisher, invalid scan, backward timestamp
+or TF fault still fails immediately. Strict feedback is rechecked before spawning
+the runner. After spawn, the original .5-second source/receipt protection applies
+without this waiting allowance. Startup waiting grants no motion permission.
+
 A per-user/domain operations lock prevents duplicate wrappers; the official
 backend retains its controller lock and publisher exclusivity. During motion,
 more than one velocity publisher, stale odometry/scan, changed odometry GID,
@@ -130,3 +142,17 @@ publishers before motion, at most one while the official runner is active, and
 0.5 seconds for feedback freshness. Fifteen unit cases cover these diagnostics,
 including unchanged admission bounds and capture/write failures. These are local
 unit results, not additional hardware verification.
+
+2026-10-22 stopped evidence startup repair: 10 targeted startup tests plus 15
+existing operations tests passed under Ubuntu-22.04/Humble; both registered
+CTests passed. The existing real ROS recorder/watch fixture ran only
+`TASK6_OPS_CASES=startup_recover,startup_timeout,active_scan_loss` in localhost
+domain 194, evidence `/tmp/task6_ops_ros/1792670976021367023/`. A one-second scan
+publication pause caused an observed stale interval, then at least three new
+fresh scan stamps before successful controller admission. A sustained startup
+pause failed after the fixed two-second wait with no controller/commands. Active
+scan loss still failed immediately at the original .5-second receipt bound;
+its final observed command was zero and graph publisher count zero, but the
+strict cleanup stopped-feedback flag remained false because scan was still
+missing. All three recorder metadata files closed. These are synthetic ROS
+lifecycle checks, not real robot motion or obstacle-avoidance acceptance.

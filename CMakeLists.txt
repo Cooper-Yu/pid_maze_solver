@@ -33,5 +33,7 @@ install(FILES tools/task6_preflight.py tools/task6_ops_runtime.py DESTINATION li
 if(BUILD_TESTING)
  add_test(NAME test_task6_ops COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/test_task6_ops.py)
  set_tests_properties(test_task6_ops PROPERTIES TIMEOUT 45)
+ add_test(NAME test_task6_evidence_startup COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test/test_task6_evidence_startup.py)
+ set_tests_properties(test_task6_evidence_startup PROPERTIES TIMEOUT 45)
 endif()
 ament_package()
