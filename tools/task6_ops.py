@@ -149,7 +149,11 @@ def prepare(args):
         max_seconds=args.max_seconds,
         speed=args.speed,
         turn_speed=args.turn_speed,
-        destination=selected['actions'][-1]['name'],
+        destination=(
+            'P15'
+            if selected['actions'][-1]['name'] == 'P15_after_turn'
+            else selected['actions'][-1]['name']
+        ),
         waypoints=str(route_file),
         route_sha256=digest(route_file),
         entry=str(entry),

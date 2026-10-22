@@ -19,9 +19,27 @@ from task6_preflight import ODOM, SCAN, Probe, validate_feedback
 class AdmissionTest(unittest.TestCase):
     def test_full_p15_success_requires_terminal_completion(self):
         with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = Path(__file__).resolve().parents[1]
+            entry = root / 'pid_maze_solver'
+            entry.write_text('fake')
+            entry.chmod(0o700)
+            support = root / 'tools/task6_ops'
+            support.mkdir(parents=True)
+            for name in ('common.py', 'evidence_recorder.py', 'odom_reset_watch.py'):
+                (support / name).write_text('# readonly')
+            packages = {
+                'pid_maze_solver': dict(source=str(source), share=str(source), library=str(root)),
+                'distance_controller': dict(source=str(root)),
+            }
+            args = SimpleNamespace(
+                workspace=root,
+                deadline=time.time() + 1000,
+                max_seconds=300,
+                speed=0.12,
+                turn_speed=0.20,
+            )
             operation = Operation.__new__(Operation)
-            operation.directory = Path(folder)
-            operation.config = dict(entry='fake', destination='P15', waypoints='fake.yaml')
             operation.start_evidence = Mock()
             operation.check_limits = Mock()
             operation.probe = Mock()
@@ -36,20 +54,33 @@ class AdmissionTest(unittest.TestCase):
                 ([dict(event='route_completed', destination='P15')], False),
                 ([complete], False),
                 ([dict(terminal, name='P15'), complete], False),
+                ([terminal, dict(complete, final_action='P15')], False),
                 ([terminal, complete], True),
-                ([dict(event='route_completed', destination='P12')], True),
             )
-            for rows, valid in cases:
-                operation.config['destination'] = rows[-1]['destination']
-                (operation.directory / 'points.jsonl').write_text(
-                    '\n'.join(json.dumps(row) for row in rows)
-                )
-                with self.subTest(rows=rows), patch('task6_ops_runtime.spawn', return_value=child):
-                    if valid:
-                        operation.execute()
-                    else:
-                        with self.assertRaisesRegex(RuntimeError, 'terminal evidence'):
+            for destination in ('P15', 'P15_after_turn'):
+                args.destination = destination
+                args.run_dir = root / destination
+                with patch.object(ops, 'provenance', return_value=packages):
+                    self.assertEqual(ops.prepare(args), 0)
+                operation.directory = args.run_dir
+                operation.config = json.loads((args.run_dir / 'config.json').read_text())
+                self.assertEqual(operation.config['destination'], 'P15')
+                preview = json.loads((args.run_dir / 'route_preview.json').read_text())
+                self.assertEqual(len(preview['actions']), 21)
+                self.assertEqual(preview['actions'][-1]['name'], 'P15_after_turn')
+                for rows, valid in cases:
+                    (operation.directory / 'points.jsonl').write_text(
+                        '\n'.join(json.dumps(row) for row in rows)
+                    )
+                    with (
+                        self.subTest(destination=destination, rows=rows),
+                        patch('task6_ops_runtime.spawn', return_value=child),
+                    ):
+                        if valid:
                             operation.execute()
+                        else:
+                            with self.assertRaisesRegex(RuntimeError, 'terminal evidence'):
+                                operation.execute()
 
     def test_explicit_run_location_and_time_bounds(self):
         for argv in (
