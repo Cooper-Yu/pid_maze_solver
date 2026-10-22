@@ -14,6 +14,12 @@ LOCAL_START，固定初始朝向和横向参考线。纵向目标为当前实际
 - 人工激光观测模式**没有自动避障**。未知覆盖仍为未知；命令/odom/scan/TF保护不会关闭。
 - READY 时无速度发布者，持续检查双 odom 身份、新鲜度、停稳及 scan。失效即结束并锁存，
   不自动等待恢复或重试。ACTIVE 时只允许当前一个速度发布者。
+  唯一例外是 READY/pub0/双 odom 与 scan 均仍新鲜、固定基准停稳时，明确的
+  `SCAN_ODOM_BRACKET_TOO_WIDE` 扫描配对间隔过大：最多等待 2 秒，撤销当前 token，
+  `control.json.waiting_for_scan_pair=true`；不能把 TF 缺失、frame/epoch 改变或 age 超限吞入等待。
+  至少三个严格递增的新 scan timestamp 已成功配对后，后端发同会话/同索引的新 READY token。
+  原请求（包括已写入但尚未 started 的请求）被撤销，操作者必须重新确认并发送 step；没有自动补发。
+  重复等待事件不能重置期限，ACTIVE 配对失败仍直接停车。
 - 正常一步完成后，后端再次确认停稳和发布者释放，才产生新的 READY。
 - `step` 请求绑定 session_id、next_index、一次性 ready_token；重复、过期、旧 token、
   BUSY 请求立即丢弃，不排队到后续 READY。没有 `--auto-next`。
@@ -60,7 +66,16 @@ python3 ~/ros2_ws/src/pid_maze_solver/tools/task6_local_session_ops.py step \
 - 一旦执行过运动，收尾要求末零速、发布者释放、反馈停稳和录制 metadata 闭合。
   从未发布命令就关闭时，单独记录 stopped/released，明确 `zero_command_observed=false`。
 
-本片段 16 个纯状态/协议测试通过；连同已有单步包装器 13 个用例合计 29 PASS。
+本片段 24 个纯状态/协议测试通过；与已有单步包装器及 ops 合计 52 PASS。
 覆盖 token/index/session/anchor、重复/过期/BUSY丢弃、取消与反馈失效阻止调度、
 无自动下一步、失败终态及无命令关闭证据。Ruff/format 通过。
 2026-10-22 已完成 WSL Ubuntu-22.04/Humble 隔离 ROS 包装器集成：两次显式步进后 quit 为 exit 0，运动中 quit 为 exit 2/Cancelled；两例均末零速、pub0/maxpub1、录制闭合和锁释放。正常例原测试误将累计纵向位移期待为两倍步长，已保留该断言错误并按每步 actual−distance 合同离线复核；未因此重跑或改动生产逻辑。尚未完成此会话的真机验收，合成反馈不能证明现场纠偏收敛或避障。
+`step --wait` 是可选的一次性结果观察：命令只写一次 FIFO，随后最多 20 秒读取
+该请求 UUID、session、index 的接受记录和 `step_started` / `step_completed`。
+拒绝、WAIT 撤销、关闭、失去新鲜状态或超时均退出 2；超时表示尚未证实完成，
+不能据此重发。完成输出 `STEP_COMPLETED <request-id> index=N`，退出 0。
+观察本身不会发第二步，也不会解除故障。普通 `step` 保持原来的非阻塞行为。
+
+恢复时刻的 2 秒截止由已校验 SHA 的后端在 paired(now) 与 READY 前检查负责。
+包装器审计验证配对新戳/身份/token，同时对仍处于 WAIT 的运行状态检查截止；
+不以稍后读取审计文件的时刻代替后端恢复时刻。

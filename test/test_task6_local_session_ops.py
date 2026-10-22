@@ -258,6 +258,215 @@ class SessionTests(unittest.TestCase):
                 session.send(self.path, 'step')
             opened.assert_not_called()
 
+    def waiting_row(self, **changes):
+        now = time.monotonic()
+        row = dict(
+            event='session_waiting',
+            session_id='new-local',
+            anchor=self.anchor,
+            next_index=1,
+            reason_code='SCAN_ODOM_BRACKET_TOO_WIDE',
+            reason='Odom bracket too wide for scan: 0.165s',
+            scan_stamp_ns=100,
+            waiting_started_mono=now,
+            waiting_deadline_mono=now + 2,
+            revoked_ready_token='one',
+        )
+        row.update(changes)
+        return row
+
+    def test_wait_revokes_ready_and_recovery_requires_new_manual_command(self):
+        self.op.audit.accept(self.waiting_row())
+        self.op.save_state()
+        self.assertFalse(self.op.audit.ready)
+        self.assertIsNone(self.op.audit.token)
+        self.op.request(self.request())
+        self.assertFalse(self.op.last_request['accepted'])
+        self.op.runner.stdin.write.assert_not_called()
+        self.op.audit.accept(
+            dict(self.ready, ready_token='two', recovered_scan_stamps=[101, 102, 103])
+        )
+        self.assertTrue(self.op.audit.ready)
+        self.op.runner.stdin.write.assert_not_called()
+        self.op.request(self.request(id='stale-after-recovery'))
+        self.assertFalse(self.op.last_request['accepted'])
+        self.op.runner.stdin.write.assert_not_called()
+
+    def test_wait_revokes_sent_but_not_started_request(self):
+        self.op.request(self.request())
+        self.op.audit.accept(self.waiting_row())
+        self.op.save_state()
+        self.assertFalse(self.op.audit.requested)
+        self.assertFalse(self.op.last_request['accepted'])
+        self.op.audit.accept(
+            dict(self.ready, ready_token='two', recovered_scan_stamps=[101, 102, 103])
+        )
+        self.op.runner.stdin.write.assert_called_once_with('step one\n')
+        self.assertFalse(self.op.audit.active)
+
+    def test_wait_prohibited_during_active(self):
+        self.op.request(self.request())
+        self.op.audit.accept(self.finished_rows()[2])
+        with self.assertRaisesRegex(RuntimeError, 'Invalid stopped'):
+            self.op.audit.accept(self.waiting_row())
+
+    def test_wait_only_whitelist_same_boundary_and_bounded_deadline(self):
+        for changes in [
+            dict(reason_code='TF_MISSING'),
+            dict(next_index=2),
+            dict(revoked_ready_token='foreign'),
+            dict(scan_stamp_ns=0),
+            dict(waiting_started_mono=0, waiting_deadline_mono=3),
+            dict(waiting_started_mono=float('nan')),
+        ]:
+            with self.assertRaises(RuntimeError):
+                self.op.audit.accept(self.waiting_row(**changes))
+        self.op.audit.accept(self.waiting_row())
+        with self.assertRaises(RuntimeError):
+            self.op.audit.accept(self.waiting_row())
+
+    def test_recovery_requires_three_distinct_new_scan_stamps(self):
+        self.op.audit.accept(self.waiting_row())
+        for stamps in ([], [101, 102], [101, 101, 102], [99, 101, 102], [103, 102, 101], None):
+            with self.assertRaisesRegex(RuntimeError, 'three new'):
+                self.op.audit.accept(
+                    dict(self.ready, ready_token='two', recovered_scan_stamps=stamps)
+                )
+        self.assertFalse(self.op.audit.ready)
+
+    def test_wait_timeout_cannot_dispatch_or_restart_deadline(self):
+        self.op.audit.accept(self.waiting_row())
+        deadline = self.op.audit.waiting['deadline']
+        with (
+            patch.object(session.time, 'monotonic', return_value=deadline),
+            self.assertRaisesRegex(RuntimeError, '2 seconds'),
+        ):
+            self.op.audit.check_wait_deadline()
+        self.op.runner.stdin.write.assert_not_called()
+        self.assertEqual(self.op.audit.waiting['deadline'], deadline)
+
+    def test_initial_wait_without_ready_token_is_supported(self):
+        audit = session.SessionAudit(self.config, self.gids)
+        audit.consume([self.start, self.waiting_row(revoked_ready_token=None)])
+        self.assertFalse(audit.ready)
+        audit.accept(dict(self.ready, ready_token='initial', recovered_scan_stamps=[101, 102, 103]))
+        self.assertTrue(audit.ready)
+
+    def test_wait_status_exposes_no_valid_permit(self):
+        self.op.audit.accept(self.waiting_row())
+        self.op.save_state()
+        state = json.loads((self.path / 'control.json').read_text())
+        self.assertTrue(state['waiting_for_scan_pair'])
+        self.assertFalse(state['ready'])
+        self.assertIsNone(state['ready_token'])
+
+    def wait_state(self):
+        message = dict(id='observed', session_id='new-local', next_index=1, ready_token='one')
+        state = dict(
+            session_id='new-local',
+            wall_s=time.time(),
+            closed=False,
+            closing=False,
+            last_request=dict(message, accepted=True),
+        )
+        rows = [
+            dict(event=e, session_id='new-local', index=1)
+            for e in ('step_started', 'step_completed')
+        ]
+        return message, state, rows
+
+    def test_wait_observes_exact_completed_request_without_sending(self):
+        message, state, rows = self.wait_state()
+        with (
+            patch.object(session, 'read_json', return_value=state),
+            patch.object(session, 'audit_rows', return_value=rows),
+            patch.object(session, 'send') as send,
+            patch.object(session.os, 'open') as opened,
+        ):
+            session.wait_step(self.path, message)
+        send.assert_not_called()
+        opened.assert_not_called()
+
+    def test_wait_explicit_rejection_including_pairing_revocation(self):
+        message, state, rows = self.wait_state()
+        state['last_request'].update(
+            accepted=False, reason='Pending step revoked by scan-pairing wait'
+        )
+        with (
+            patch.object(session, 'read_json', return_value=state),
+            patch.object(session, 'audit_rows', return_value=rows),
+            self.assertRaisesRegex(RuntimeError, 'request rejected'),
+        ):
+            session.wait_step(self.path, message)
+
+    def test_wait_closed_stale_fault_or_wrong_identity_refuses(self):
+        message, state, rows = self.wait_state()
+        for changed in (
+            dict(closed=True),
+            dict(closing=True),
+            dict(wall_s=time.time() - 3),
+            dict(session_id='other'),
+        ):
+            with (
+                patch.object(session, 'read_json', return_value=dict(state, **changed)),
+                self.assertRaises(RuntimeError),
+            ):
+                session.wait_step(self.path, message)
+        with (
+            patch.object(session, 'read_json', return_value=state),
+            patch.object(
+                session,
+                'audit_rows',
+                return_value=rows + [dict(event='session_failed', session_id='new-local')],
+            ),
+            self.assertRaisesRegex(RuntimeError, 'session fault'),
+        ):
+            session.wait_step(self.path, message)
+
+    def test_wait_requires_request_binding_and_matching_completed_index(self):
+        message, state, rows = self.wait_state()
+        state['last_request']['next_index'] = 2
+        with (
+            patch.object(session, 'read_json', return_value=state),
+            self.assertRaisesRegex(RuntimeError, 'binding mismatch'),
+        ):
+            session.wait_step(self.path, message)
+        state['last_request']['next_index'] = 1
+        with (
+            patch.object(session, 'read_json', return_value=state),
+            patch.object(session, 'audit_rows', return_value=[dict(r, index=2) for r in rows]),
+            patch.object(session.time, 'monotonic', side_effect=[0, 0, 21]),
+            patch.object(session.time, 'sleep'),
+            self.assertRaisesRegex(RuntimeError, 'completion unconfirmed'),
+        ):
+            session.wait_step(self.path, message)
+
+    def test_wait_timeout_never_resends_and_pending_is_not_completion(self):
+        message, state, rows = self.wait_state()
+        state['last_request'] = None
+        with (
+            patch.object(session, 'read_json', return_value=state),
+            patch.object(session, 'audit_rows', return_value=rows),
+            patch.object(session.time, 'monotonic', side_effect=[0, 0, 21]),
+            patch.object(session.time, 'sleep'),
+            patch.object(session, 'send') as send,
+            self.assertRaisesRegex(RuntimeError, '20s.*do not resend'),
+        ):
+            session.wait_step(self.path, message)
+        send.assert_not_called()
+
+    def test_wait_cli_is_step_only_and_sends_exactly_once(self):
+        message, _, _ = self.wait_state()
+        with (
+            patch.object(session, 'send', return_value=message) as send,
+            patch.object(session, 'wait_step', side_effect=RuntimeError('unconfirmed')) as wait,
+        ):
+            self.assertEqual(session.main(['step', '--session-dir', str(self.path), '--wait']), 2)
+        send.assert_called_once_with(self.path, 'step')
+        wait.assert_called_once_with(self.path, message)
+        with self.assertRaises(SystemExit):
+            session.main(['status', '--session-dir', str(self.path), '--wait'])
+
 
 if __name__ == '__main__':
     unittest.main()

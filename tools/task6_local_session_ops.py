@@ -28,10 +28,15 @@ class SessionAudit:
         self.completed = 0
         self.requested = self.active = self.closed = False
         self.used_tokens = set()
+        self.waiting = None
+        self.pending_token = None
+        self.pending_revoked = False
 
     @property
     def ready(self):
-        return bool(self.token) and not (self.requested or self.active or self.closed)
+        return bool(self.token) and not (
+            self.requested or self.active or self.closed or self.waiting
+        )
 
     def consume(self, rows):
         if rows[: len(self.rows)] != self.rows:
@@ -46,12 +51,20 @@ class SessionAudit:
             raise RuntimeError('Session fault: ' + str(row.get('reason')))
         if event == 'session_started':
             self.start_session(row)
-        elif event in ('session_ready', 'step_started', 'step_completed', 'session_closed'):
+        elif event in (
+            'session_ready',
+            'session_waiting',
+            'step_started',
+            'step_completed',
+            'session_closed',
+        ):
             if not self.session_id or row.get('session_id') != self.session_id or self.closed:
                 raise RuntimeError('Session identity/terminal mismatch')
             if event != 'session_closed' and row.get('anchor') != self.anchor:
                 raise RuntimeError('Fixed session anchor changed')
-            if event == 'session_ready':
+            if event == 'session_waiting':
+                self.accept_waiting(row)
+            elif event == 'session_ready':
                 self.accept_ready(row)
             elif event == 'step_started':
                 if not self.requested or self.active or row.get('index') != self.completed + 1:
@@ -62,10 +75,42 @@ class SessionAudit:
                     raise RuntimeError('Unstarted or out-of-order step completed')
                 self.completed += 1
                 self.requested = self.active = False
+                self.pending_token = None
             else:
-                if self.requested or self.active or row.get('completed_steps') != self.completed:
-                    raise RuntimeError('Session closed with pending/inconsistent step')
-                self.closed, self.token = True, None
+                self.accept_closed(row)
+
+    def accept_closed(self, row):
+        if self.requested or self.active or row.get('completed_steps') != self.completed:
+            raise RuntimeError('Session closed with pending/inconsistent step')
+        self.closed, self.token = True, None
+        self.waiting = None
+
+    def accept_waiting(self, row):
+        started, deadline = row.get('waiting_started_mono'), row.get('waiting_deadline_mono')
+        if (
+            self.active
+            or self.waiting
+            or row.get('next_index') != self.completed + 1
+            or row.get('reason_code') != 'SCAN_ODOM_BRACKET_TOO_WIDE'
+            or not all(
+                isinstance(v, (int, float)) and math.isfinite(v) for v in (started, deadline)
+            )
+            or not 0 < deadline - started <= 2.000001
+            or not isinstance(row.get('scan_stamp_ns'), int)
+            or row['scan_stamp_ns'] <= 0
+        ):
+            raise RuntimeError('Invalid stopped scan-pairing wait')
+        expected = self.pending_token if self.requested else self.token
+        if row.get('revoked_ready_token') != expected:
+            raise RuntimeError('Pairing wait revoked an unexpected permit')
+        self.pending_revoked = self.requested
+        self.token = self.pending_token = None
+        self.requested = False
+        self.waiting = dict(started=started, deadline=deadline, scan_stamp_ns=row['scan_stamp_ns'])
+
+    def check_wait_deadline(self):
+        if self.waiting and time.monotonic() >= self.waiting['deadline']:
+            raise RuntimeError('Stopped scan pairing wait exceeded 2 seconds; no retry')
 
     def accept_ready(self, row):
         token = row.get('ready_token')
@@ -79,6 +124,16 @@ class SessionAudit:
             or token in self.used_tokens
         ):
             raise RuntimeError('Unexpected READY token/index/state')
+        if self.waiting:
+            stamps = row.get('recovered_scan_stamps')
+            if (
+                not isinstance(stamps, list)
+                or len(stamps) != 3
+                or not all(isinstance(v, int) and v > 0 for v in stamps)
+                or not self.waiting['scan_stamp_ns'] < stamps[0] < stamps[1] < stamps[2]
+            ):
+                raise RuntimeError('READY lacks three new valid-pair scan stamps')
+            self.waiting = None
         self.token = token
         self.used_tokens.add(token)
 
@@ -107,8 +162,9 @@ class SessionAudit:
     def mark_requested(self):
         if not self.ready:
             raise RuntimeError('No fresh READY for one manual step')
-        token, self.token, self.requested = self.token, None, True
-        return token
+        self.pending_token, self.token, self.requested = self.token, None, True
+        self.pending_revoked = False
+        return self.pending_token
 
 
 class LocalSessionOperation(LocalStepOperation):
@@ -131,6 +187,11 @@ class LocalSessionOperation(LocalStepOperation):
         return command + ['--max-seconds', str(self.config['max_seconds'])]
 
     def save_state(self):
+        if self.audit.pending_revoked and self.last_request is not None:
+            self.last_request.update(
+                accepted=False, reason='Pending step revoked by scan-pairing wait'
+            )
+            self.audit.pending_revoked = False
         write_json(
             self.directory / 'control.json',
             dict(
@@ -143,6 +204,8 @@ class LocalSessionOperation(LocalStepOperation):
                 ready_token=self.audit.token,
                 next_index=self.audit.completed + 1,
                 completed_steps=self.audit.completed,
+                waiting_for_scan_pair=self.audit.waiting is not None,
+                pairing_wait=self.audit.waiting,
                 last_request=self.last_request,
                 wall_s=time.time(),
                 pid=os.getpid(),
@@ -179,6 +242,7 @@ class LocalSessionOperation(LocalStepOperation):
             self.seen.add(ident)
         if reason is None:
             self.check_limits()
+            self.audit.check_wait_deadline()
             self.check_recording()
             if name == 'step':
                 self.probe.snapshot(stopped=True, expected=self.identities)
@@ -193,7 +257,15 @@ class LocalSessionOperation(LocalStepOperation):
                 command = 'quit'
             self.runner.stdin.write(command + '\n')
             self.runner.stdin.flush()
-        self.last_request = dict(id=ident, command=name, accepted=reason is None, reason=reason)
+        self.last_request = dict(
+            id=ident,
+            command=name,
+            accepted=reason is None,
+            reason=reason,
+            session_id=message.get('session_id'),
+            next_index=message.get('next_index'),
+            ready_token=message.get('ready_token'),
+        )
         self.save_state()
 
     def receive(self):
@@ -238,6 +310,7 @@ class LocalSessionOperation(LocalStepOperation):
             self.probe.pump()
             self.check_limits()
             self.audit.consume(audit_rows(audit_path))
+            self.audit.check_wait_deadline()
             self.probe.snapshot(
                 stopped=not (self.audit.requested or self.audit.active), expected=self.identities
             )
@@ -279,6 +352,8 @@ class LocalSessionOperation(LocalStepOperation):
             data.update(
                 fixed_new_epoch_anchor=True,
                 completed_steps=self.audit.completed,
+                waiting_for_scan_pair=self.audit.waiting is not None,
+                pairing_wait=self.audit.waiting,
                 anchor=self.audit.anchor,
                 session_id=self.audit.session_id,
             )
@@ -314,6 +389,43 @@ def send(directory, name):
     finally:
         os.close(fd)
     print('QUEUED', message['id'], name, '(inspect status; no automatic next)')
+    return message
+
+
+def wait_step(directory, message):
+    """Observe one already-sent request for at most 20 seconds; never write a command."""
+    end = time.monotonic() + 20.0
+    accepted = False
+    while time.monotonic() < end:
+        state = read_json(directory / 'control.json')
+        if state.get('session_id') != message['session_id']:
+            raise RuntimeError('WAIT session identity changed; do not resend')
+        if not -0.1 <= time.time() - state['wall_s'] <= 2:
+            raise RuntimeError('WAIT status stale; completion unconfirmed; do not resend')
+        request = state.get('last_request') or {}
+        if request.get('id') == message['id']:
+            if not request.get('accepted'):
+                raise RuntimeError('WAIT request rejected: ' + str(request.get('reason')))
+            if any(
+                request.get(k) != message[k] for k in ('session_id', 'next_index', 'ready_token')
+            ):
+                raise RuntimeError('WAIT request binding mismatch; do not resend')
+            accepted = True
+        elif accepted:
+            raise RuntimeError('WAIT request superseded; inspect evidence; do not resend')
+        if state.get('closed') or state.get('closing'):
+            raise RuntimeError('WAIT session closed before completion confirmed; do not resend')
+        rows = audit_rows(directory / 'local_session.jsonl')
+        relevant = [r for r in rows if r.get('session_id') == message['session_id']]
+        if any(r.get('event') == 'session_failed' for r in relevant):
+            raise RuntimeError('WAIT session fault; inspect evidence; do not resend')
+        if accepted:
+            events = [r.get('event') for r in relevant if r.get('index') == message['next_index']]
+            if events == ['step_started', 'step_completed']:
+                print('STEP_COMPLETED', message['id'], 'index=' + str(message['next_index']))
+                return
+        time.sleep(0.05)
+    raise RuntimeError('WAIT timed out after 20s; completion unconfirmed; do not resend')
 
 
 def start(args):
@@ -382,6 +494,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=('start', 'step', 'status', 'quit'))
     parser.add_argument('--session-dir', type=Path, required=True)
+    parser.add_argument('--wait', action='store_true', help='step only: observe once, at most 20s')
     parser.add_argument('--workspace', type=Path, default=Path.home() / 'ros2_ws')
     parser.add_argument('--supervised-manual', action='store_true')
     parser.add_argument('--step-distance', type=float, default=0.03)
@@ -389,6 +502,8 @@ def main(argv=None):
     parser.add_argument('--deadline', type=deadline)
     parser.add_argument('--max-seconds', type=int, default=600)
     args = parser.parse_args(argv)
+    if args.wait and args.action != 'step':
+        parser.error('--wait is only available for step')
     if not math.isfinite(args.step_distance) or not 0 < args.step_distance <= 0.05:
         parser.error('step-distance must be positive and <=.05 m backward')
     if not math.isfinite(args.speed) or not 0.01 <= args.speed <= 0.03:
@@ -401,7 +516,9 @@ def main(argv=None):
         if args.action == 'status':
             print(json.dumps(read_json(args.session_dir / 'control.json'), indent=2))
         else:
-            send(args.session_dir, args.action)
+            message = send(args.session_dir, args.action)
+            if args.wait:
+                wait_step(args.session_dir, message)
         return 0
     except (OSError, ValueError, RuntimeError, ImportError, KeyError) as error:
         print('LOCAL SESSION REFUSED:', error, file=sys.stderr, flush=True)
