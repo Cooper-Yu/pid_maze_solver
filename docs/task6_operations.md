@@ -341,3 +341,27 @@ rounds these anchors. A local ideal-response run of the actual PathTracker at
 This checks planning and tracker interaction, not drivetrain dynamics or measured
 clearance. No follower/speed/feedback/4 cm protection code is changed. The
 candidate remains validated:false and must start from freshly initialized P01.
+### Operator-requested P09/P10/P11 adjustment after staged-approach test
+
+The operator reported that P09->P10 remained close to the wall, and explicitly
+selected an additional 2 cm right shift of both P09 and P10 plus a 1 cm forward
+shift of P11's endpoint along its post-turn heading. These are fixed-P01 endpoint
+changes relative to 10d5e67, not a fresh odom rebase or a controller tolerance change.
+
+At heading -pi/2, body right is negative P01 x. New P09 is
+(1.3365502783181422,-1.5878885984779116); new P10 is
+(1.2549013479064715,-1.9655925989094274). Translate all P10 staged points by
+(-0.02,0), keeping their relative shape. Reinterpolate P08->P09 (11 points) from
+unchanged P08. After P10's clockwise turn, forward is negative P01 x: move P11's
+endpoint from x=0.9418674948445646 to x=0.9318674948445645, with y unchanged.
+Reinterpolate P10->P11 (eight points) and P11->P12 (18 points) to the unchanged P12
+endpoint. All intervals stay <=5 cm. P12 and all later endpoints, headings,
+terminal half-turn, speeds and protections stay fixed. Since P10's start also
+moves, the P11 endpoint shift does not mean its new segment length grows by 1 cm.
+
+This is an operator-directed candidate, not a measured collision-free corridor.
+The earlier 171305 scan table reported model gaps of -2.0/-4.2 mm for a full
+2 cm right shift at forward 6.1/8.5 cm after P09, so early right clearance is
+especially tight. The operator was informed before this update. Keep the original
+feedback/stop/4 cm protections and observation_only policy; do not turn these
+counterfactual scans into an automatic motion permission or claim hardware success.
