@@ -311,3 +311,33 @@ bend; the preserved approach points are nominal geometry, not an exact-stop clai
 The route remains validated:false and full-route hardware repeatability is pending.
 Retain all speeds, feedback pauses, final tolerances, cancellation and 4 cm guard.
 Regenerate Task8 from the final accepted forward geometry later.
+### Superseding staged P10 approach after e10bede contact
+
+The operator confirmed that e10bede contacted the wall while translating, before
+its clockwise turn. Retaining the old P10 approach and adding displacement only
+at its end was a planning error. The endpoint scan's model gap did not validate
+the entire approach. Do not repeat that failed candidate.
+
+The earlier closed recording 171305 was sampled along P09->P10. Model gaps after
+right shifts of 0/2/4/6/8 cm were: at 0 cm forward, 2.82/0.82/-1.18/-3.18/-5.18 cm;
+at 18 cm, 0.57/0.62/-1.38/-3.38/-5.38 cm; at 24.3 cm,
+0.03/1.52/-0.48/-2.42/-2.60 cm; at 26.7 cm,
+-0.62/0.93/-0.43/-0.57/-2.57 cm; at 30.1 cm,
+-0.41/1.58/2.51/0.67/-0.35 cm. This supports a gradual small right offset through
+the narrowing approach, followed by a larger offset as the right side opens.
+These isolated observed-point comparisons do not certify the continuous corridor.
+
+Replace only P10's interior points. Relative to the original near-straight approach,
+reviewed nominal forward/right anchors in meters are (0.12,0), (0.18,0.010),
+(0.24,0.014), (0.30,0.016), (0.34,0.038), then the existing new P10 endpoint.
+Subdivide all edges to <=5 cm: P10 now has 13 points. P09, P10's final target,
+P10's heading, P11 and every other action remain unchanged from e10bede.
+The removed original near-wall P10 anchor is not a required waypoint or stop.
+
+The existing path follower has speed-scaled lookahead (8 cm at 0.12 m/s), so it
+rounds these anchors. A local ideal-response run of the actual PathTracker at
+0.12 m/s produced extra right offsets about 0.93/1.43/1.94/3.24 cm at forward
+18.0/24.3/26.7/30.1 cm. A 0.08 m/s comparison produced 0.91/1.32/1.58/2.59 cm.
+This checks planning and tracker interaction, not drivetrain dynamics or measured
+clearance. No follower/speed/feedback/4 cm protection code is changed. The
+candidate remains validated:false and must start from freshly initialized P01.
