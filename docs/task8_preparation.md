@@ -46,3 +46,11 @@ python3 -m pytest -q test/test_task8_reverse_geometry.py
 
 The output must not already exist. The checked-in candidate is deliberately
 `validated: false`. The generator has no ROS imports or control publishers.
+
+## 2026-10-25 current baseline and P15 initialization
+
+Task6 official scene2 completed under cb3021f and task6 tag is fixed there. This branch merges that baseline and regenerates the reverse candidate from its latest P12/P13/P14/P15 geometry. Earlier reverse YAML was historical and must not be deployed as current. Scene4 remains disabled until start and cancellation/feedback contracts are implemented and verified.
+
+P15 needs its own stopped/fresh localization and heading verification. Do not reuse P01 right26cm/rear28cm targets. For a same-epoch forward-to-reverse handoff, retain the measured P01-to-odom transform, compare actual P15 against the nominal current route endpoint and current fresh wall observations, and reject clock/frame/epoch discontinuity. A moved robot or reset epoch needs independent P15 localization. Merely setting the current pose as the reverse origin hides forward terminal-turn drift.
+
+The reversed interpolation is an initial geometric candidate, not proof of reverse clearance. Reverse approach headings change the swept footprint and wall side. Keep Task8-specific point adjustments separate from the task6 tag; validate P15-P14-P13 first with odom/laser/camera evidence before the full P01 route. Retain P01 final counterclockwise180 and original stop/feedback/4cm guards.

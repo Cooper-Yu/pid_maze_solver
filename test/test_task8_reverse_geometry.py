@@ -18,6 +18,14 @@ def routes():
     return forward, reverse_real(forward)
 
 
+def test_checked_in_candidate_matches_current_forward(routes):
+    import yaml
+
+    _, expected = routes
+    actual = yaml.safe_load((ROOT / 'waypoints/reverse_waypoints_real.yaml').read_text())
+    assert actual == expected
+
+
 def test_full_waypoint_order_and_explicit_positive_terminal(routes):
     _, reverse = routes
     paths = [a for a in reverse['actions'] if a['kind'] == 'path']
