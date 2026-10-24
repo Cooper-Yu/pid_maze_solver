@@ -50,15 +50,21 @@ class P11ExtensionGeometry(unittest.TestCase):
 
     def test_all_other_geometry_matches_reviewed_691e292_baseline(self):
         # Baseline hashes are offline guards against accidental route-wide translations.
-        others = [a for a in self.route['actions'] if a['name'] not in ('P11', 'P12')]
+        others = [a for a in self.route['actions'] if a['name'] not in ('P10', 'P11', 'P12')]
         self.assertEqual(
             geometry_hash(others),
-            'a9af59286ebb974aab69ea98bae5300f7ddfc39332a22d4c528299e6cc69cbed',
+            'dc39c65c52ee7249c6e68932127a3a1cd749c1e6e1b68900ba4e6691c0194e25',
         )
         self.assertEqual(
-            geometry_hash(self.actions['P11']['points'][:-1]),
-            '72b7c34dfd653e89a0aab2ea0247678ae8df2ffe909c5f47b7ec8652be707899',
+            self.actions['P10']['points'][-1], [1.335841813224953, -1.8179827169427831]
         )
+        self.assertEqual(self.actions['P11']['points'][0], self.actions['P10']['points'][-1])
+        self.assertEqual(self.actions['P10']['points'][0], self.actions['P09']['points'][-1])
+        for name in ('P10', 'P11'):
+            points = self.actions[name]['points']
+            self.assertTrue(
+                all(0 < math.dist(x, y) <= 0.050000001 for x, y in zip(points, points[1:]))
+            )
         self.assertEqual(
             geometry_hash(self.actions['P12']['points'][2:]),
             '8640ad523f383d48fd0f13afda6f94c3b2fe505146417db6b361d4ef62c9096d',

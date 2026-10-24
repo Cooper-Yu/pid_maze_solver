@@ -441,3 +441,22 @@ counterfactual scans into an automatic motion permission or claim hardware succe
 ### 2026-10-25 staged front candidate
 
 `--corner-placement front` enables only P10 front-wall arrival at0.090 +/-0.005m body clearance, with explicit accepted endpoint and connector to the fixed P11+5cm target. P09 and other obstacle handling remain observation-only. `lidar` includes unvalidated P09 lane selection; the recorded P09 sample was BLOCKED, so use `front` for the next bounded engineering trial. Neither mode changes P01 origin, initial heading tolerance, feedback protection or4cm turn guard. Result `corner_placement` records actual mode; `laser_policy=observation_only` is not a claim of full-route avoidance.
+
+### 2026-10-25 sampled fixed P10 candidate
+
+The operator selected the stopped position from `front_wait_20261025_0340` as a fixed
+P10 candidate. Transform the final filtered pose (1.3659460116863873,
+-0.6598956072844562) through that run's recorded P01 (-0.32670598357368813,
+0.8315680134602398, yaw0.21480160875622412): P10=(1.335841813224953,
+-1.8179827169427831) in fixed P01 axes. This is historical sampling, never a
+live odom recovery target. Every new run must initialize at physical P01.
+
+Use `--corner-placement off` for this candidate: no new P10 laser arrival action.
+Laser observation and the existing freshness/stop/4cm protections remain.
+Resample P09->P10 and P10->P11 at <=5cm. Preserve P11's final explicit 5cm
+forward extension and all other actions/endpoints. The connector from new P10 to
+old P11 prefix is diagonal; neither free clearance nor a successful right turn is
+proven. Route validated remains false. The second laser trial timed out after
+246.367s with zero/release/closed recording all confirmed; it did not reach P11.
+Front samples varied (last rejected7.517cm), and stopped heading error about
+0.015rad also exceeded the0.01rad gate. Waiting alone did not resolve arrival.
