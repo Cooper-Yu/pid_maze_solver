@@ -7,7 +7,7 @@ import yaml
 
 STEP_NAMES = tuple(f'P{i:02d}_P{i + 1:02d}' for i in range(1, 15))
 REVERSE_STEP_NAMES = tuple(f'P{i:02d}_P{i - 1:02d}' for i in range(15, 1, -1))
-SCENE_FRAMES = {1: 'P01', 2: 'P01', 3: 'P15'}
+SCENE_FRAMES = {1: 'P01', 2: 'P01', 3: 'P15', 4: 'P15'}
 TURN_AFTER = {3, 10, 11, 12, 13, 14}
 ACTION_NAMES = tuple(
     name
@@ -198,6 +198,10 @@ def load_scene(path, scene):
     )
     if data.keys() - allowed:
         raise ValueError('Unknown scene file field')
+    if scene == 4:
+        from task8_route_model import validate_reverse
+
+        return validate_reverse(data)
     return validate_sim(data, scene) if scene in (1, 3) else validate_real(data)
 
 

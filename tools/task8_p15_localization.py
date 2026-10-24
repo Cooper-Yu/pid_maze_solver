@@ -82,3 +82,52 @@ def origin_from_current(current_odom, current_in_nominal):
         'yaw': -a,
     }
     return compose(current_odom, inverse)
+
+
+def require_source_sequences(samples):
+    """Reject replayed or backward source stamps before considering pose estimates."""
+    for key in ('scan_stamp', 'odom_stamp'):
+        stamps = [s[key] for s in samples]
+        if any(isinstance(v, bool) or not isinstance(v, int) or v <= 0 for v in stamps):
+            raise ValueError('P15 invalid source timestamp')
+        if any(b < a for a, b in zip(stamps, stamps[1:])):
+            raise ValueError('P15 source clock moved backward')
+        required = len(samples) if key == 'scan_stamp' else 10
+        if len(set(stamps)) < required:
+            raise ValueError('P15 repeated source frames')
+
+
+def qualify_samples(samples):
+    """Require two agreeing stopped batches and every estimate inside the 2cm/1deg gate."""
+    from statistics import median
+
+    if len(samples) < 12 or samples[-1]['time'] - samples[0]['time'] < 1.0:
+        raise ValueError('P15 requires twelve samples spanning one second')
+    require_source_sequences(samples)
+    times = [finite(s['time']) for s in samples]
+    if any(not 0 < b - a <= 0.35 for a, b in zip(times, times[1:])):
+        raise ValueError('P15 samples are not consecutive fresh observations')
+    first = samples[0]['odom']
+    for sample in samples:
+        pose, estimate = sample['odom'], sample['estimate']
+        for values in (pose, estimate):
+            for key in ('x', 'y', 'yaw'):
+                finite(values[key])
+        if math.hypot(pose['x'] - first['x'], pose['y'] - first['y']) > 0.005:
+            raise ValueError('P15 moved during initialization')
+        if abs(math.remainder(pose['yaw'] - first['yaw'], 2 * math.pi)) > 0.01:
+            raise ValueError('P15 turned during initialization')
+        if math.hypot(estimate['x'], estimate['y']) > 0.02 or abs(estimate['yaw']) > math.radians(
+            1
+        ):
+            raise ValueError('P15 estimate outside nominal 2cm/1deg gate')
+    half = len(samples) // 2
+    centers = [
+        {k: median(s['estimate'][k] for s in group) for k in ('x', 'y', 'yaw')}
+        for group in (samples[:half], samples[half:])
+    ]
+    if math.hypot(centers[0]['x'] - centers[1]['x'], centers[0]['y'] - centers[1]['y']) > 0.005:
+        raise ValueError('P15 position batches disagree')
+    if abs(centers[0]['yaw'] - centers[1]['yaw']) > math.radians(0.5):
+        raise ValueError('P15 heading batches disagree')
+    return {k: median(s['estimate'][k] for s in samples) for k in ('x', 'y', 'yaw')}

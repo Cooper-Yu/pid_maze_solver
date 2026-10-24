@@ -24,9 +24,14 @@ def package_directory(package, kind):
 
 
 def default_file(scene):
-    files = {1: 'waypoints_sim.yaml', 2: 'waypoints_real.yaml', 3: 'reverse_waypoints_sim.yaml'}
+    files = {
+        1: 'waypoints_sim.yaml',
+        2: 'waypoints_real.yaml',
+        3: 'reverse_waypoints_sim.yaml',
+        4: 'reverse_waypoints_real.yaml',
+    }
     if scene not in files:
-        raise ValueError('Unsupported scene; scene 4 is not implemented')
+        raise ValueError('Unsupported scene')
     source = Path(__file__).resolve().parent.parent / 'waypoints'
     base = (
         source if source.is_dir() else package_directory('pid_maze_solver', 'share') / 'waypoints'
@@ -58,7 +63,7 @@ def parse_args(argv):
         split = values.index('--ros-args')
         values, ros_args = values[:split], values[split:]
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('scene', nargs='?', type=int, choices=(1, 2, 3), default=1)
+    parser.add_argument('scene', nargs='?', type=int, choices=(1, 2, 3, 4), default=1)
     parser.add_argument('--waypoints', '--route-file', dest='waypoints', type=Path)
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--destination')
@@ -72,8 +77,12 @@ def parse_args(argv):
     parser.add_argument('--start-position-tolerance', type=bounded_value(0.005, 0.010))
     parser.add_argument('--corner-placement', choices=('off', 'front', 'lidar'))
     parser.add_argument('--output', type=Path)
+    parser.add_argument('--source-book', type=Path)
+    parser.add_argument('--source-bag', type=Path)
+    parser.add_argument('--forward-route', type=Path)
+    parser.add_argument('--max-seconds', type=bounded_value(1, 600), default=600)
     args = parser.parse_args(values)
-    if args.scene in (2, 3) and ros_args:
+    if args.scene in (2, 3, 4) and ros_args:
         parser.error(f'Scene {args.scene} does not accept unchecked ROS overrides')
     if args.scene in (1, 3) and any(
         (
@@ -90,7 +99,7 @@ def parse_args(argv):
             'Destination/speed/output/supervised/start-position-tolerance/corner-placement '
             'are scene 2 options'
         )
-    if args.scene == 2:
+    if args.scene in (2, 4):
         # Match the reviewed hardware profile when using the course's bare scene-2 command.
         if args.speed is None:
             args.speed = 0.06
@@ -98,6 +107,13 @@ def parse_args(argv):
             args.turn_speed = 0.20
         if args.start_position_tolerance is None:
             args.start_position_tolerance = 0.010
+    if args.scene == 4:
+        if args.supervised or args.corner_placement not in (None, 'off'):
+            parser.error('Scene4 does not accept supervised/corner-placement overrides')
+        if not args.source_book or not args.source_bag:
+            parser.error('Scene4 requires explicit --source-book and --source-bag')
+    elif args.source_book or args.source_bag or args.forward_route:
+        parser.error('P15 source options require scene4')
     if args.scene == 2 and args.corner_placement is None:
         args.corner_placement = 'off'
     return args, ros_args
@@ -150,9 +166,9 @@ def run_owned(command):
 
 
 def backend_command(args, route_file, ros_args):
-    if args.scene not in (1, 2, 3):
-        raise ValueError('Unsupported scene; scene 4 is not implemented')
-    if args.scene in (2, 3) and ros_args:
+    if args.scene not in (1, 2, 3, 4):
+        raise ValueError('Unsupported scene')
+    if args.scene in (2, 3, 4) and ros_args:
         raise ValueError(f'Scene {args.scene} does not accept unchecked ROS overrides')
     if args.scene in (1, 3):
         return [
@@ -162,6 +178,27 @@ def backend_command(args, route_file, ros_args):
             str(route_file),
             *(ros_args[1:] if args.scene == 1 else ['-p', 'use_sim_time:=true']),
         ]
+    if args.scene == 4:
+        command = [
+            executable('pid_maze_solver', 'task8_runner'),
+            '--route-json',
+            str(route_file),
+            '--source-book',
+            str(args.source_book),
+            '--source-bag',
+            str(args.source_bag),
+            '--forward-route',
+            str(args.forward_route or default_file(2)),
+            '--speed',
+            str(args.speed),
+            '--turn-speed',
+            str(args.turn_speed),
+            '--max-seconds',
+            str(args.max_seconds),
+        ]
+        if args.output is not None:
+            command.extend(('--output', str(args.output)))
+        return command
     command = [
         executable('distance_controller', 'task6_route_runner'),
         '--scene',
@@ -187,11 +224,16 @@ def main(argv=None):
     try:
         path = args.waypoints or default_file(args.scene)
         route = load_scene(path, args.scene)
-        payload = (
-            select_real(route, args.destination or 'P15', execute=not args.dry_run)
-            if args.scene == 2
-            else route
-        )
+        if args.scene == 4:
+            from task8_route_model import select_reverse
+
+            payload = select_reverse(route, args.destination or 'P13', execute=not args.dry_run)
+        else:
+            payload = (
+                select_real(route, args.destination or 'P15', execute=not args.dry_run)
+                if args.scene == 2
+                else route
+            )
         if args.dry_run:
             print(
                 json.dumps(
@@ -208,8 +250,10 @@ def main(argv=None):
             )
             return 0
         with tempfile.TemporaryDirectory(prefix='pid_maze_scene_') as temporary:
-            resolved = Path(temporary) / ('route.json' if args.scene == 2 else 'parameters.yaml')
-            if args.scene == 2:
+            resolved = Path(temporary) / (
+                'route.json' if args.scene in (2, 4) else 'parameters.yaml'
+            )
+            if args.scene in (2, 4):
                 resolved.write_text(json.dumps(payload, allow_nan=False))
             else:
                 resolved.write_text(

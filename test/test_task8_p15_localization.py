@@ -98,3 +98,63 @@ def test_outside_local_region_rejected(x, y, yaw):
     reference, current = pair(x, y, yaw)
     with pytest.raises(ValueError, match='Outside bounded'):
         register_walls(reference, current)
+
+
+def stopped_samples():
+    return [
+        dict(
+            time=i * 0.1,
+            scan_stamp=i + 1,
+            odom_stamp=i + 1,
+            odom=dict(x=20, y=30, yaw=1.5),
+            estimate=dict(x=-0.014, y=-0.008, yaw=(-0.006 if i % 2 else -0.009)),
+        )
+        for i in range(12)
+    ]
+
+
+def test_stationary_batch_uses_multiple_frames_without_rebasing_offset():
+    from task8_p15_localization import qualify_samples
+
+    assert qualify_samples(stopped_samples()) == pytest.approx(
+        dict(x=-0.014, y=-0.008, yaw=-0.0075)
+    )
+
+
+@pytest.mark.parametrize(
+    'failure',
+    [
+        'repeat_scan',
+        'repeat_odom',
+        'clock_back',
+        'moved',
+        'turned',
+        'outside',
+        'heading_shift',
+        'short',
+    ],
+)
+def test_stopped_batch_rejects_unsafe_evidence(failure):
+    from task8_p15_localization import qualify_samples
+
+    samples = stopped_samples()
+    if failure == 'repeat_scan':
+        samples[-1]['scan_stamp'] = samples[-2]['scan_stamp']
+    elif failure == 'repeat_odom':
+        for s in samples:
+            s['odom_stamp'] = 1
+    elif failure == 'clock_back':
+        samples[-1]['odom_stamp'] = 1
+    elif failure == 'moved':
+        samples[-1]['odom']['x'] += 0.006
+    elif failure == 'turned':
+        samples[-1]['odom']['yaw'] += 0.011
+    elif failure == 'outside':
+        samples[-1]['estimate']['x'] = 0.021
+    elif failure == 'heading_shift':
+        for s in samples[6:]:
+            s['estimate']['yaw'] = 0.004
+    else:
+        samples[-1]['time'] = 0.8
+    with pytest.raises(ValueError):
+        qualify_samples(samples)

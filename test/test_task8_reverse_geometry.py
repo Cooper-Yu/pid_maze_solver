@@ -73,11 +73,12 @@ def test_legacy_route_without_terminal_is_rejected(routes):
         reverse_real(forward)
 
 
-def test_generator_does_not_enable_hardware_scene_four(routes, tmp_path):
+def test_generated_scene_four_loads_as_unvalidated_candidate(routes, tmp_path):
     _, reverse = routes
     import yaml
 
     candidate = tmp_path / 'reverse.yaml'
     candidate.write_text(yaml.safe_dump(reverse))
-    with pytest.raises(ValueError, match='scene 4 is not implemented'):
-        load_scene(candidate, 4)
+    loaded = load_scene(candidate, 4)
+    assert loaded['validated'] is False
+    assert loaded['actions'][-1]['name'] == 'P01_after_turn'

@@ -77,3 +77,25 @@ need verification before the estimate may authorize an inverse route.
 
 Local checks: 24 reverse-geometry/localization tests passed; Ruff format/check and
 Git whitespace checks passed in Ubuntu-22.04. This does not certify hardware motion.
+## Scene4 stopped-wall initialization and prefix runner
+
+The new initializer qualifies twelve distinct laser scans over at least one second,
+with at least ten odometry timestamps, fresh stopped dual sources, unchanged live
+publisher identities and mounting TF checked against the closed recording. Every
+laser pose estimate must remain inside 2cm/1deg of nominal P15. Two half-window
+medians must agree within 5mm/.5deg; actual odometry must stay stationary within
+5mm/.01rad. The current-epoch origin is derived only after these checks. The old
+unobserved odom gap is not treated as continuous. No startup publisher is created.
+Missing or unreliable data waits up to twenty seconds, then refuses motion.
+
+User authorized choosing the most reliable walls: the front/right pair is used
+because rear fits at 20/12/10/8deg failed the actual recorded-data coverage or
+consensus checks. Front/right matching is bounded local registration near confirmed
+P15, not global localization. Current odometry carries the calibrated frame during
+motion; it does not establish the initial physical position by itself.
+
+Scene4 requires explicit --source-book and --source-bag, and defaults to a P13
+prefix. It records P15 without overwriting the nominal origin, reconnects the first
+path and every post-turn path, and uses the existing controller protections. Prefix
+completion is not full success; only P01 plus signed CCW+pi can finish the full route.
+The Task6 tag and forward geometry remain unchanged. Hardware validation is pending.

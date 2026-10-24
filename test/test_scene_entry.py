@@ -169,7 +169,7 @@ class ReverseSceneFiles(unittest.TestCase):
         forward['parameters']['route_direction'] = 'reverse'
         with self.assertRaisesRegex(ValueError, 'Unknown scene 1'):
             scene_route.validate_sim(forward)
-        with self.assertRaisesRegex(ValueError, 'Unsupported scene'):
+        with self.assertRaisesRegex(ValueError, 'must match'):
             scene_route.load_scene(self.path, 4)
 
 
@@ -312,14 +312,12 @@ class EntryContract(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 self.quiet_main(['4', '--dry-run'])
             run.assert_not_called()
-        with self.assertRaisesRegex(ValueError, 'Unsupported scene'):
-            maze_entry.default_file(4)
-        args, _ = maze_entry.parse_args(['3'])
-        args.scene = 4
-        with patch.object(maze_entry, 'executable') as executable:
-            with self.assertRaisesRegex(ValueError, 'Unsupported scene'):
-                maze_entry.backend_command(args, Path('/unused'), [])
-            executable.assert_not_called()
+        self.assertEqual(maze_entry.default_file(4).name, 'reverse_waypoints_real.yaml')
+        args, _ = maze_entry.parse_args(['4', '--source-book', '/book', '--source-bag', '/bag'])
+        with patch.object(maze_entry, 'executable', return_value='/runner'):
+            command = maze_entry.backend_command(args, Path('/unused'), [])
+        self.assertIn('--source-book', command)
+        self.assertIn('--source-bag', command)
 
     def test_scene3_custom_yaml_cpp_backend_sim_clock_and_failure(self):
         with tempfile.TemporaryDirectory() as directory:
