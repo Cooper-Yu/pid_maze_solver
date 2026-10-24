@@ -104,6 +104,7 @@ def parse_args(argv=None):
     parser.add_argument('--speed', type=float, default=0.04)
     parser.add_argument('--turn-speed', type=float, default=0.10)
     parser.add_argument('--start-position-tolerance', type=float, default=0.005)
+    parser.add_argument('--corner-placement', choices=('off', 'front', 'lidar'), default='off')
     parser.add_argument(
         '--at-p01',
         action='store_true',
@@ -155,6 +156,7 @@ def prepare(args):
         speed=args.speed,
         turn_speed=args.turn_speed,
         start_position_tolerance=getattr(args, 'start_position_tolerance', 0.005),
+        corner_placement=getattr(args, 'corner_placement', 'off'),
         destination=(
             'P15'
             if selected['actions'][-1]['name'] == 'P15_after_turn'
@@ -185,6 +187,9 @@ def verify_config(directory):
     if not math.isfinite(config['turn_speed']) or not 0.02 <= config['turn_speed'] <= 0.60:
         raise RuntimeError('Invalid turn speed')
     tolerance = config.setdefault('start_position_tolerance', 0.005)
+    corner_placement = config.setdefault('corner_placement', 'off')
+    if corner_placement not in ('off', 'front', 'lidar'):
+        raise RuntimeError('Invalid corner placement')
     if (
         type(tolerance) not in (int, float)
         or not math.isfinite(tolerance)

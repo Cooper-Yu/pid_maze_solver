@@ -47,7 +47,7 @@ def test_default_retained(tmp_path):
     assert args.start_position_tolerance == 0.005
 
 
-def prepared(tmp_path, tolerance=0.010):
+def prepared(tmp_path, tolerance=0.010, corner_placement='off'):
     entry = tmp_path / 'pid_maze_solver'
     entry.write_text('fixture, never execute')
     entry.chmod(0o700)
@@ -68,6 +68,7 @@ def prepared(tmp_path, tolerance=0.010):
         destination='P12',
         run_dir=tmp_path / 'run',
         start_position_tolerance=tolerance,
+        corner_placement=corner_placement,
     )
     with patch.object(ops, 'provenance', return_value=packages):
         assert ops.prepare(args) == 0

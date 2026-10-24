@@ -70,6 +70,7 @@ def parse_args(argv):
     parser.add_argument('--speed', type=bounded_value(0.01, 0.12))
     parser.add_argument('--turn-speed', type=bounded_value(0.02, 0.60))
     parser.add_argument('--start-position-tolerance', type=bounded_value(0.005, 0.010))
+    parser.add_argument('--corner-placement', choices=('off', 'front', 'lidar'))
     parser.add_argument('--output', type=Path)
     args = parser.parse_args(values)
     if args.scene in (2, 3) and ros_args:
@@ -82,13 +83,17 @@ def parse_args(argv):
             args.output,
             args.supervised,
             args.start_position_tolerance is not None,
+            args.corner_placement is not None,
         )
     ):
         parser.error(
-            'Destination/speed/output/supervised/start-position-tolerance are scene 2 options'
+            'Destination/speed/output/supervised/start-position-tolerance/corner-placement '
+            'are scene 2 options'
         )
     if args.scene == 2 and args.start_position_tolerance is None:
         args.start_position_tolerance = 0.005
+    if args.scene == 2 and args.corner_placement is None:
+        args.corner_placement = 'off'
     return args, ros_args
 
 
@@ -164,6 +169,7 @@ def backend_command(args, route_file, ros_args):
         ('--turn-speed', args.turn_speed),
         ('--output', args.output),
         ('--start-position-tolerance', getattr(args, 'start_position_tolerance', 0.005)),
+        ('--corner-placement', getattr(args, 'corner_placement', 'off')),
     ):
         if value is not None:
             command.extend((name, str(value)))

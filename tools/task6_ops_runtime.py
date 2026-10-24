@@ -241,6 +241,8 @@ class Operation:
             str(self.config.get('turn_speed', 0.10)),
             '--start-position-tolerance',
             str(self.config.get('start_position_tolerance', 0.005)),
+            '--corner-placement',
+            self.config.get('corner_placement', 'off'),
         ]
 
     def execute(self):
@@ -364,6 +366,7 @@ class Operation:
             destination=self.config['destination'],
             task6_acceptance=False,
             laser_policy='observation_only',
+            corner_placement=self.config.get('corner_placement', 'off'),
         )
         write_json(self.directory / 'result.json', result)
         return 0 if result['success'] else 2

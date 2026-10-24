@@ -8,6 +8,52 @@ it cannot satisfy the Task6 laser-avoidance or repeated-full-route acceptance.
 
 ## Preparation and explicit motion
 
+### Optional corner placement wiring (2026-10-25)
+
+`prepare --corner-placement lidar` selects the separately audited corner-placement
+mode; omission defaults to `off`. Only `off` and `lidar` are accepted, and the
+scene entry rejects explicit use in scenes1/3. The manifest persists
+`corner_placement`, missing legacy fields resolve to `off` in memory, and
+`Operation.build_command()` forwards the option through scene2 to the backend.
+The frontend result also records `corner_placement`; `laser_policy` remains
+`observation_only` elsewhere. Selecting a local corner-placement mode does not
+claim full-route lidar avoidance or Task6 acceptance. Backend runtime behaviour
+requires its separate implementation and validation; this frontend slice does
+not perform it. The 1 cm initialization option and P11 extension candidate are
+preserved.
+
+Ubuntu-22.04 Ruff passed for the three affected tools and new wiring test.
+`python3 -m pytest -q test/test_corner_placement_wiring.py
+test/test_start_position_tolerance.py test/test_task6_ops.py test/test_scene_entry.py
+test/test_p11_extension_geometry.py` passed 74 tests in 1.12s.
+No cloud, hardware, commit or push occurred.
+
+### P11 forward extension candidate (2026-10-25)
+
+Relative to `691e292`, P10→P11 retains its existing samples and appends a
+5 cm forward segment after the P10 turn (heading `-pi`):
+`(0.9318674948445645, -1.9058474122860602)` →
+`(0.8818674948445645, -1.9058474122860602)` in the fixed P01 frame.
+
+P12 starts at this new endpoint. It rejoins the original second P12 sample
+`(0.9312951229449715, -1.8579497335091535)` through the midpoint
+`(0.906581308894768, -1.8818985728976069)`. A direct join would exceed the
+5 cm sample-spacing limit; the midpoint divides that same local diagonal into
+two approximately 3.44 cm segments. This local join adds lateral displacement
+during the P12 start, rather than translating P12 and every subsequent point.
+All original P12 samples from its second sample onward, its endpoint, P13–P15,
+all turns/headings, route policy and control settings remain unchanged.
+
+This is an unverified geometry candidate, not wall-clearance evidence. The
+sampling/continuity checks do not prove that the local P12 diagonal is safe in
+the physical corridor. P08→P09/P09→P10 are unchanged in this slice; their lidar
+adaptation is a separate task, not another guessed waypoint offset.
+`validated: false` remains in force. No cloud or hardware run was performed.
+Offline geometry checks are in `test/test_p11_extension_geometry.py`.
+Ubuntu-22.04 local checks: Ruff passed for that test; `python3 -m pytest -q
+test/test_p11_extension_geometry.py test/test_scene_entry.py` passed 24 tests
+in 0.70s; `git diff --check` passed. No target-runtime acceptance is implied.
+
 ### Bounded start-position tolerance (2026-10-25)
 
 `prepare --start-position-tolerance 0.010` explicitly selects a 1 cm tolerance
@@ -391,3 +437,7 @@ The earlier 171305 scan table reported model gaps of -2.0/-4.2 mm for a full
 especially tight. The operator was informed before this update. Keep the original
 feedback/stop/4 cm protections and observation_only policy; do not turn these
 counterfactual scans into an automatic motion permission or claim hardware success.
+
+### 2026-10-25 staged front candidate
+
+`--corner-placement front` enables only P10 front-wall arrival at0.090 +/-0.005m body clearance, with explicit accepted endpoint and connector to the fixed P11+5cm target. P09 and other obstacle handling remain observation-only. `lidar` includes unvalidated P09 lane selection; the recorded P09 sample was BLOCKED, so use `front` for the next bounded engineering trial. Neither mode changes P01 origin, initial heading tolerance, feedback protection or4cm turn guard. Result `corner_placement` records actual mode; `laser_policy=observation_only` is not a claim of full-route avoidance.
