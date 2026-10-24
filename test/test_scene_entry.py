@@ -40,7 +40,7 @@ class SceneFiles(unittest.TestCase):
         p13 = next(a for a in route['actions'] if a['name'] == 'P13')
         self.assertEqual(p13['points'][-1], [0.39580195477126867, -1.0619099009985675])
         self.assertEqual(
-            route['actions'][-2]['points'][-1], [0.02899960878708014, -0.5596575672149936]
+            route['actions'][-2]['points'][-1], [0.02899960878708014, -0.5796575672149936]
         )
 
     def test_guarded_prefix_and_explicit_validation(self):

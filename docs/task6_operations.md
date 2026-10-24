@@ -508,3 +508,8 @@ The preceding left-2cm/forward-2cm candidate triggered the existing 4cm drift st
 ### P11 to P12 straight-line correction
 
 User requires P11 to P12 to drive straight after the turn, without the former body-right offset. All P12 samples now keep P11 endpoint P01 x=0.8818674948445645, retaining their original y and heading. P12 endpoint becomes (0.8818674948445645,-1.0915868730786444); P13 starts at that endpoint and rejoins its remaining samples. P13 right2cm/forward3cm correction remains relative to the original P13. Previous left2cm/forward2cm candidate is cancelled.
+
+
+### Post-success P14/P15 left-offset candidate
+
+4074cf1 completed all21 actions and terminal half-turn once. User requested P14 and P15 each move2cm body-left at their respective approach headings. P14 gradually adds negative-P01-x2cm, preserving its P13 start. P15 begins at updated P14 and gradually adds negative-P01-y2cm, preserving its endpoint x. Final half-turn heading and all guards unchanged. New version requires a new three-run streak; geometry does not certify physical clearance.

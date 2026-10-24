@@ -79,10 +79,22 @@ class P11ExtensionGeometry(unittest.TestCase):
         self.assertTrue(all(b[1] > a[1] for a, b in zip(p14, p14[1:])))
         self.assertEqual(self.actions['P15']['points'][0], p14[-1])
         self.assertEqual(
-            self.actions['P15']['points'][-1], [0.02899960878708014, -0.5596575672149936]
+            self.actions['P15']['points'][-1], [0.02899960878708014, -0.5796575672149936]
         )
         validate_real(self.route)
         self.assertFalse(self.route['validated'])
+
+    def test_p14_and_p15_move_left_two_cm_in_their_respective_headings(self):
+        p14, p15 = self.actions['P14'], self.actions['P15']
+        self.assertEqual(p14['points'][0], self.actions['P13']['points'][-1])
+        self.assertAlmostEqual(p14['points'][-1][0], 0.39248777781822897 - 0.02)
+        self.assertAlmostEqual(p14['points'][-1][1], -0.5732626964522145)
+        self.assertEqual(p15['points'][0], p14['points'][-1])
+        self.assertTrue(all(b[0] < a[0] for a, b in zip(p15['points'], p15['points'][1:])))
+        self.assertAlmostEqual(p15['points'][-1][0], 0.02899960878708014)
+        self.assertAlmostEqual(p15['points'][-1][1], -0.5596575672149936 - 0.02)
+        self.assertEqual(self.actions['P15_after_turn']['heading_rad'], 0.0)
+        validate_real(self.route)
 
     def test_all_other_geometry_matches_reviewed_691e292_baseline(self):
         # Baseline hashes are offline guards against accidental route-wide translations.
