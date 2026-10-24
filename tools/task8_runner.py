@@ -112,8 +112,8 @@ def session(args, path, audit, actions, initialize):
     try:
         try:
             runner.task8_emit = emitter
+            runner.exclusive()  # Allow DDS discovery before immutable publisher binding.
             runner.feedback_pause = RouteFeedbackPause(runner, emitter, cancellation.check)
-            runner.exclusive()
             cancellation.check()
             origin = initialize(
                 runner, args.source_book, args.source_bag, args.endpoint, cancellation
