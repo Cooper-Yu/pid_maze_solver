@@ -474,3 +474,23 @@ starting y. P10, all other actions, headings and protections are unchanged.
 Use corner-placement off. Geometry/schema/spacing and58 targeted checks pass;
 physical clearance, P10 right turn, P11 and full repeatability remain unverified.
 This supersedes the older diagonal P11 candidate, not any safety gate.
+
+### 2026-10-25 operator-approved staged P09 to P10 correction
+
+Trial fixed_p10_20261024_212059 reached P10 but stopped during its clockwise turn
+at the existing 4cm center-drift guard. Recording/zero/release checks passed.
+Its recorded scan predicts minimum footprint gap -3.91cm near52deg at the old
+center; shifting8cm right and4cm forward predicts1.92cm for that finite snapshot.
+This is diagnostic evidence, not collision-free certification; initial point gap
+was -5.90mm and unknown heights, drift and changing observations remain unverified.
+
+The operator approved8cm body-right and4cm forward relative to44af7ef P10.
+At heading-pi/2 this sets P10=(1.255841813224953,-1.8579827169427832).
+Do not jump laterally at arrival. P09->P10 advances12cm on the old lane, then
+uses right-offset knots1.5cm at18cm forward,4.5cm at23cm, and8cm at the endpoint.
+Keep the original small baseline lateral interpolation; every segment is <=4.5cm.
+P11 remains straight at the new P10 y, preserving its x endpoint and explicit
+final5cm forward extension. P12 adds one connector sample and rejoins the same
+old downstream samples. Other actions/headings/P15 half-turn remain unchanged.
+Use corner-placement off and unchanged speed.06/turn.20/start tolerance.010,
+feedback/stop/4cm guards and observation_only. validated remains false.
