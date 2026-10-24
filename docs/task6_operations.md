@@ -494,3 +494,7 @@ final5cm forward extension. P12 adds one connector sample and rejoins the same
 old downstream samples. Other actions/headings/P15 half-turn remain unchanged.
 Use corner-placement off and unchanged speed.06/turn.20/start tolerance.010,
 feedback/stop/4cm guards and observation_only. validated remains false.
+
+## 2026-10-25 P13 clearance candidate
+
+User observed right-wall contact at P13 turn and toward P14. Extend P13 by 2 cm body-forward, then 2 cm body-left (heading -pi: negative P01 x/y). Shift the entire P14 line 2 cm negative P01 x and connect P15 from its updated start, preserving the P15 endpoint and final half-turn. P10/P11/P12 and all safety gates are unchanged. Geometry checks do not certify physical clearance; hardware validation pending.

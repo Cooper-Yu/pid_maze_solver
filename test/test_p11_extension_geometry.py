@@ -66,12 +66,34 @@ class P11ExtensionGeometry(unittest.TestCase):
             if forward <= 0.120000001:
                 self.assertAlmostEqual(right, 0.0)
 
+    def test_p13_forward_then_left_and_p14_stays_away_from_right_wall(self):
+        points = self.actions['P13']['points']
+        before, forward, left = points[-3:]
+        self.assertAlmostEqual(forward[0] - before[0], -0.02)
+        self.assertEqual(forward[1], before[1])
+        self.assertEqual(left[0], forward[0])
+        self.assertAlmostEqual(left[1] - forward[1], -0.02)
+        p14 = self.actions['P14']['points']
+        self.assertEqual(p14[0], left)
+        self.assertTrue(all(p[0] <= left[0] + 1e-12 for p in p14))
+        self.assertTrue(all(b[1] > a[1] for a, b in zip(p14, p14[1:])))
+        self.assertEqual(self.actions['P15']['points'][0], p14[-1])
+        self.assertEqual(
+            self.actions['P15']['points'][-1], [0.02899960878708014, -0.5596575672149936]
+        )
+        validate_real(self.route)
+        self.assertFalse(self.route['validated'])
+
     def test_all_other_geometry_matches_reviewed_691e292_baseline(self):
         # Baseline hashes are offline guards against accidental route-wide translations.
-        others = [a for a in self.route['actions'] if a['name'] not in ('P10', 'P11', 'P12')]
+        others = [
+            a
+            for a in self.route['actions']
+            if a['name'] not in ('P10', 'P11', 'P12', 'P13', 'P14', 'P15')
+        ]
         self.assertEqual(
             geometry_hash(others),
-            'dc39c65c52ee7249c6e68932127a3a1cd749c1e6e1b68900ba4e6691c0194e25',
+            '0ecb2fbf179f5992120356842d7bb2445788a755e7c38cdc7ace5fbf91c14e2a',
         )
         self.assertEqual(
             self.actions['P10']['points'][-1], [1.255841813224953, -1.8579827169427832]
