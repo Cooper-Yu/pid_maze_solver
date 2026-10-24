@@ -54,3 +54,26 @@ Task6 official scene2 completed under cb3021f and task6 tag is fixed there. This
 P15 needs its own stopped/fresh localization and heading verification. Do not reuse P01 right26cm/rear28cm targets. For a same-epoch forward-to-reverse handoff, retain the measured P01-to-odom transform, compare actual P15 against the nominal current route endpoint and current fresh wall observations, and reject clock/frame/epoch discontinuity. A moved robot or reset epoch needs independent P15 localization. Merely setting the current pose as the reverse origin hides forward terminal-turn drift.
 
 The reversed interpolation is an initial geometric candidate, not proof of reverse clearance. Reverse approach headings change the swept footprint and wall side. Keep Task8-specific point adjustments separate from the task6 tag; validate P15-P14-P13 first with odom/laser/camera evidence before the full P01 route. Retain P01 final counterclockwise180 and original stop/feedback/4cm guards.
+
+## P15 localization experiment, 2026-10-25
+
+Historical TeachingBook records do not contain a continuous odom publisher/reset
+lease. Pose and scan similarity are consistency evidence, not proof of an unchanged
+odom epoch. Do not use the unintegrated handoff draft to authorize motion.
+
+`task8_p15_localization.py` estimates a small relative pose from nonparallel front
+and right wall lines, using the existing chassis/wheel support geometry. It retains
+the recorded terminal offset from nominal P15 and constructs a new transform using
+current odometry. It rejects bad fits, inconsistent rotations and estimates beyond
+5cm/5deg. This is bounded local registration near visually confirmed P15, not global
+localization or a complete initialized-motion contract.
+
+`task8_p15_probe.py` is a read-only experiment: use the exact terminal scan stamp
+from a closed bag, collect current stopped scans, fit both walls and preserve raw
+estimates. It never creates a velocity publisher or starts a controller. Its result
+always reports `stable_start_verified: false`; scene4 remains disabled. Multi-frame
+stability, mounting provenance, localization confidence and motion handoff still
+need verification before the estimate may authorize an inverse route.
+
+Local checks: 24 reverse-geometry/localization tests passed; Ruff format/check and
+Git whitespace checks passed in Ubuntu-22.04. This does not certify hardware motion.
