@@ -103,6 +103,8 @@ def parse_args(argv=None):
     parser.add_argument('--destination', default='P12')
     parser.add_argument('--speed', type=float, default=0.04)
     parser.add_argument('--turn-speed', type=float, default=0.10)
+    parser.add_argument('--start-position-tolerance', type=float, default=0.005)
+    parser.add_argument('--corner-placement', choices=('off', 'front', 'lidar'), default='off')
     parser.add_argument(
         '--at-p01',
         action='store_true',
@@ -113,6 +115,10 @@ def parse_args(argv=None):
         parser.error('speed must be finite .01..12 m/s')
     if not math.isfinite(args.turn_speed) or not 0.02 <= args.turn_speed <= 0.60:
         parser.error('turn-speed must be finite .02..60 rad/s')
+    if not math.isfinite(args.start_position_tolerance) or not (
+        0.005 <= args.start_position_tolerance <= 0.010
+    ):
+        parser.error('start-position-tolerance must be finite .005..010 m')
     if args.action == 'prepare' and args.deadline is None:
         parser.error('prepare requires an explicit timezone-aware --deadline')
     if not 30 <= args.max_seconds <= 1680:
@@ -149,7 +155,13 @@ def prepare(args):
         max_seconds=args.max_seconds,
         speed=args.speed,
         turn_speed=args.turn_speed,
-        destination=selected['actions'][-1]['name'],
+        start_position_tolerance=getattr(args, 'start_position_tolerance', 0.005),
+        corner_placement=getattr(args, 'corner_placement', 'off'),
+        destination=(
+            'P15'
+            if selected['actions'][-1]['name'] == 'P15_after_turn'
+            else selected['actions'][-1]['name']
+        ),
         waypoints=str(route_file),
         route_sha256=digest(route_file),
         entry=str(entry),
@@ -174,6 +186,16 @@ def verify_config(directory):
         raise RuntimeError('Invalid speed')
     if not math.isfinite(config['turn_speed']) or not 0.02 <= config['turn_speed'] <= 0.60:
         raise RuntimeError('Invalid turn speed')
+    tolerance = config.setdefault('start_position_tolerance', 0.005)
+    corner_placement = config.setdefault('corner_placement', 'off')
+    if corner_placement not in ('off', 'front', 'lidar'):
+        raise RuntimeError('Invalid corner placement')
+    if (
+        type(tolerance) not in (int, float)
+        or not math.isfinite(tolerance)
+        or not (0.005 <= tolerance <= 0.010)
+    ):
+        raise RuntimeError('Invalid start position tolerance')
     if not 30 <= config['max_seconds'] <= 1680:
         raise RuntimeError('Invalid maximum duration')
     if provenance(Path(config['workspace'])) != config['packages']:

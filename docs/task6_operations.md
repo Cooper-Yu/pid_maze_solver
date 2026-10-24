@@ -8,6 +8,78 @@ it cannot satisfy the Task6 laser-avoidance or repeated-full-route acceptance.
 
 ## Preparation and explicit motion
 
+### Optional corner placement wiring (2026-10-25)
+
+`prepare --corner-placement lidar` selects the separately audited corner-placement
+mode; omission defaults to `off`. Only `off` and `lidar` are accepted, and the
+scene entry rejects explicit use in scenes1/3. The manifest persists
+`corner_placement`, missing legacy fields resolve to `off` in memory, and
+`Operation.build_command()` forwards the option through scene2 to the backend.
+The frontend result also records `corner_placement`; `laser_policy` remains
+`observation_only` elsewhere. Selecting a local corner-placement mode does not
+claim full-route lidar avoidance or Task6 acceptance. Backend runtime behaviour
+requires its separate implementation and validation; this frontend slice does
+not perform it. The 1 cm initialization option and P11 extension candidate are
+preserved.
+
+Ubuntu-22.04 Ruff passed for the three affected tools and new wiring test.
+`python3 -m pytest -q test/test_corner_placement_wiring.py
+test/test_start_position_tolerance.py test/test_task6_ops.py test/test_scene_entry.py
+test/test_p11_extension_geometry.py` passed 74 tests in 1.12s.
+No cloud, hardware, commit or push occurred.
+
+### P11 forward extension candidate (2026-10-25)
+
+Relative to `691e292`, P10→P11 retains its existing samples and appends a
+5 cm forward segment after the P10 turn (heading `-pi`):
+`(0.9318674948445645, -1.9058474122860602)` →
+`(0.8818674948445645, -1.9058474122860602)` in the fixed P01 frame.
+
+P12 starts at this new endpoint. It rejoins the original second P12 sample
+`(0.9312951229449715, -1.8579497335091535)` through the midpoint
+`(0.906581308894768, -1.8818985728976069)`. A direct join would exceed the
+5 cm sample-spacing limit; the midpoint divides that same local diagonal into
+two approximately 3.44 cm segments. This local join adds lateral displacement
+during the P12 start, rather than translating P12 and every subsequent point.
+All original P12 samples from its second sample onward, its endpoint, P13–P15,
+all turns/headings, route policy and control settings remain unchanged.
+
+This is an unverified geometry candidate, not wall-clearance evidence. The
+sampling/continuity checks do not prove that the local P12 diagonal is safe in
+the physical corridor. P08→P09/P09→P10 are unchanged in this slice; their lidar
+adaptation is a separate task, not another guessed waypoint offset.
+`validated: false` remains in force. No cloud or hardware run was performed.
+Offline geometry checks are in `test/test_p11_extension_geometry.py`.
+Ubuntu-22.04 local checks: Ruff passed for that test; `python3 -m pytest -q
+test/test_p11_extension_geometry.py test/test_scene_entry.py` passed 24 tests
+in 0.70s; `git diff --check` passed. No target-runtime acceptance is implied.
+
+### Bounded start-position tolerance (2026-10-25)
+
+`prepare --start-position-tolerance 0.010` explicitly selects a 1 cm tolerance
+for the fresh P01 position initialization. The default remains `0.005` m;
+only finite values in the closed interval `[0.005, 0.010]` are accepted.
+The value is persisted as `config.json` `start_position_tolerance` and passed
+through `Operation.build_command()` to the official scene2 entry and then to
+`distance_controller/task6_route_runner --start-position-tolerance`.
+The backend maps it to `precise_start_position_tolerance`. Old manifests lacking
+the field retain `0.005` without rewriting the stored manifest; all existing
+deadline, provenance and source/install matching checks still apply.
+
+The option is scene2-only: scenes1/3 accept omission and reject explicit use.
+This changes only the requested initialization position tolerance. Heading,
+feedback, 4 cm displacement, micro-adjustment guards, route geometry and speeds
+are unchanged; it adds no P02 dynamic correction or session-resume capability.
+After an authorized source update, create a fresh reviewed run manifest rather
+than bypassing provenance checks on an older run.
+
+Local Ubuntu-22.04 checks for the frontend slice:
+`python3 -m ruff check tools/task6_ops.py tools/task6_ops_runtime.py tools/maze_entry.py`
+passed; `python3 -m pytest -q test/test_task6_ops.py test/test_scene_entry.py`
+passed 40 tests. Independent new parameter tests, the coordinated colcon build
+and target-environment verification are separate gates. No ROS, cloud or
+hardware execution occurred in this slice.
+
 After the reviewed Git update, build and source the workspace as usual. Both
 packages must be in `~/ros2_ws/src`, with their Git history, plus the existing
 `turn_controller` checkout. The source support scripts live at
@@ -184,3 +256,265 @@ A continuously retriggered guard callback exited the drain after 3 calls; measur
 drain times across the cases were 2.026/1.873/2.103 ms. These small overruns include
 completion of an already started callback, not an added waiting allowance.
 Synthetic localhost checks do not prove cloud scheduling or filtered availability.
+
+## Observation-only scan tolerance (2026-10-22)
+
+The user explicitly selected a 1.0-second scan source/receipt limit for the
+observation-only official run. Only the running `Operation.execute` monitor uses
+this exception. Default preflight, evidence startup and final stopped checks keep
+0.5 seconds; both odometry topics always keep 0.5 seconds. Invalid/future stamps,
+missing scan, invalid frames/ranges, identity changes and prolonged loss still
+reject motion. Diagnostics record both effective scan and odometry limits.
+The backend enables matching 1.0-second geometry freshness only after precise
+P01 preparation, including the observation-only terminal half-turn. Enforced
+supervised guards and preparation remain strict. This is not obstacle avoidance.
+Full success requires canonical destination P15 and explicit completed
+P15_after_turn evidence; preparation accepts either destination spelling.
+
+## P10 forward-offset candidate (2026-10-22)
+
+`scan_grace_20261022_153333` reached P10, then stopped while turning right at
+about -47 degrees when filtered-odom center drift crossed 4cm. The operator
+could not confirm contact; a photograph shows the slanted robot near a wall end,
+which does not prove collision or its cause. Cleanup and evidence closure passed.
+The candidate advances P10 by 0.020m along its existing -pi/2 heading: fixed-P01
+XY changes from (1.3549013479064715,-1.8855925989094273) to
+(1.3549013479064715,-1.9055925989094273). P09 and P11 endpoints, all other targets
+and turn headings are unchanged. P09->P10 and P10->P11 are reinterpolated with
+spacing <=5cm (8/10 points). This aims to clear the rear of the wall corner before
+turning; it is a hardware-unverified candidate, not a confirmed collision repair.
+All speed, scan policy and 4cm drift limits remain. Restart near verified P01;
+no partial-turn resume or old odom reference. Task8 geometry must be regenerated
+from the final accepted forward route before it can be integrated for execution.
+## Owner-side feedback pause (2026-10-23)
+
+After strict preparation, the observation-only route now binds both filtered and
+raw odometry identities. It proactively holds zero at 0.35s odometry or 0.8s scan
+age, before the existing outer 0.5s/1s movement admission checks. A pause lasts at
+most 5s, with at most 10s cumulative per route, and never extends action deadlines.
+The backend alone controls zero and release. Recovery requires both odometry
+streams to provide at least three advancing, fresh, stopped samples spanning
+0.3s, fresh scan/TF, unchanged identities/frames, and <=4cm pause-anchor drift.
+The same fixed target/path and original turn center are retained; PID, limiter
+and settling history reset. Invalid data, clock/pose jumps, competing publishers,
+cancellation and exhausted budgets stop the run. This is not obstacle avoidance.
+
+C++ precise initialization separately uses the same 5s bounded zero-hold for
+scan/filtered-odom interruptions. It requires fresh stopped feedback before
+reacquiring wall alignment/position, discards interrupted micro-targets, and
+preserves final 5mm/0.5deg, travel, total60s and stage deadlines. The supervisor
+still checks both odometry identities; raw-only initialization outages without
+an owner hold remain strict failures. Preflight/final-stop admission is unchanged.
+
+The read-only supervisor accepts old cached samples only after an explicit
+`feedback_pause_started` event or initialization `FEEDBACK_RECOVERING` marker,
+plus actual zero-command acknowledgement and unchanged command ownership.
+`feedback_wait.jsonl` records observed holds. No hold event means strict previous
+freshness, even with a long zero-command history. Recording health remains
+required; feedback count growth may stall only during an acknowledged hold.
+Initialization recovery logs and route pause events are retained in motion.log
+and points.jsonl. Full-run completion still requires all21 actions including
+P15_after_turn, successful cleanup and closed recording metadata.
+
+Local isolated ROS fixtures verify temporary outage, zero hold, recovery,
+identity changes, timeout and cancellation; joint owner/supervisor fixtures also
+exercise the acknowledgement. Hardware validation remains pending, including
+same-version three consecutive complete runs. The P10 forward2cm candidate is
+unchanged. Task7 tag and Task8 candidate are unaffected.
+Cooperative deployment shortcut: after pulling and reviewing both expected
+commits, run `bash src/pid_maze_solver/tools/task6_cooperative_run.bash DISTANCE_SHA PID_SHA`.
+It verifies the pinned versions, builds both packages, creates a new run, performs
+preflight, then uses the already-confirmed physical P01. It has a 600s operation
+limit and an explicit UTC deadline twenty minutes from invocation; the existing
+wrapper reserves cleanup time. Invoke only after teleop is released. The EXIT
+trap prints the run path, result and final controller lines; it creates no extra
+velocity publisher. This shortcut does not return the robot or resume old odom.
+### Stopped feedback wait before controller dispatch
+
+`feedback_pause_20261022_165902` failed with filtered odom source age before any
+recorded velocity command or controller log. The evidence-startup guard previously
+allowed only scan age to wait; either odom aging past 0.5 s aborted immediately.
+The exact failed phase/ages require that run's failure_snapshot for confirmation.
+
+During evidence startup and the final pre-dispatch boundary, the supervisor now
+keeps **zero velocity publishers** while a timestamp-age outage waits at most five
+seconds. Cached samples are never motion-ready. Recovery requires both odometry
+streams and scan to be fresh under the original 0.5 s limits, with at least three
+distinct source stamps per stream over a 0.3 s observation interval. Each renewed
+age outage resets this recovery evidence, not its five-second outage deadline.
+The existing total startup limit of 18 s and run/cancellation/deadline checks remain.
+Publisher identity/count, stopped velocities, TF, frames, invalid/future/backward
+stamps and latched data faults remain mandatory throughout. Initial preflight and
+normal active/final validation retain their existing strict rules; this is an
+explicit stopped startup scope only. Recorder process health remains mandatory;
+required count growth must be proved after feedback readiness before dispatch.
+
+Regression: `test_task6_evidence_startup.py` plus `test_task6_ops.py`; live localhost
+DDS fixture `ROS_DOMAIN_ID=195 ROS_LOCALHOST_ONLY=1 python3
+ test/verify_task6_startup_feedback.py recover` (also `timeout` and `cancel`).
+The live fixture asserts no `/cmd_vel` messages or publishers in all cases.
+### P10 corner-clearance candidate after run 171305
+
+Run `feedback_pause_20261022_171305` reached P10 within about 2.6 mm of the
+configured endpoint, then stopped on the original 4 cm turn-center drift guard
+at about 35 degrees of clockwise rotation. The operator suspected wall contact;
+a single camera frame does not establish its cause. A closed-bag scan 81 ms before
+the P10 pose record fitted the front wall at 129.1 mm body clearance. Side and rear
+single-wall fits had no dominant consensus; this is unavailable geometry, not
+proof of free space.
+
+A read-only comparison of those observed points against the chassis/wheel rectangle
+union during a clockwise quarter-turn found: front6/right6 cm gave only 1.1 mm
+minimum model gap; front6/right8 gave 20.7 mm; front6/right10 gave 20.1 mm.
+Front3/right8 and front3/right10 gave only 9.3 and 11.1 mm respectively. The
+unshifted rotation gave -40.8 mm; the unshifted static model gap was already
+-3.6 mm. These are counterfactual observed-point diagnostics, not certified physical
+clearances: unseen space, model/mount errors and actual center drift remain unknown.
+No swept-envelope gate or obstacle-policy change is introduced.
+
+Select front6/right8 cm relative to P10's existing -pi/2 heading. In fixed P01
+axes the new P10 is (1.2749013479064715, -1.9655925989094274), a delta of
+(-0.08,-0.06) m from the previous candidate. Preserve every existing P10 approach
+point, append three <=3.34 cm diagonal intervals, then turn. This keeps the earlier
+P09 approach instead of spreading the extra right shift through its narrow section.
+Reinterpolate P10->P11 at <=5 cm spacing (eight points); P09, P11's endpoint, every
+other action and all headings remain unchanged. Path tracking can round the local
+bend; the preserved approach points are nominal geometry, not an exact-stop claim.
+The route remains validated:false and full-route hardware repeatability is pending.
+Retain all speeds, feedback pauses, final tolerances, cancellation and 4 cm guard.
+Regenerate Task8 from the final accepted forward geometry later.
+### Superseding staged P10 approach after e10bede contact
+
+The operator confirmed that e10bede contacted the wall while translating, before
+its clockwise turn. Retaining the old P10 approach and adding displacement only
+at its end was a planning error. The endpoint scan's model gap did not validate
+the entire approach. Do not repeat that failed candidate.
+
+The earlier closed recording 171305 was sampled along P09->P10. Model gaps after
+right shifts of 0/2/4/6/8 cm were: at 0 cm forward, 2.82/0.82/-1.18/-3.18/-5.18 cm;
+at 18 cm, 0.57/0.62/-1.38/-3.38/-5.38 cm; at 24.3 cm,
+0.03/1.52/-0.48/-2.42/-2.60 cm; at 26.7 cm,
+-0.62/0.93/-0.43/-0.57/-2.57 cm; at 30.1 cm,
+-0.41/1.58/2.51/0.67/-0.35 cm. This supports a gradual small right offset through
+the narrowing approach, followed by a larger offset as the right side opens.
+These isolated observed-point comparisons do not certify the continuous corridor.
+
+Replace only P10's interior points. Relative to the original near-straight approach,
+reviewed nominal forward/right anchors in meters are (0.12,0), (0.18,0.010),
+(0.24,0.014), (0.30,0.016), (0.34,0.038), then the existing new P10 endpoint.
+Subdivide all edges to <=5 cm: P10 now has 13 points. P09, P10's final target,
+P10's heading, P11 and every other action remain unchanged from e10bede.
+The removed original near-wall P10 anchor is not a required waypoint or stop.
+
+The existing path follower has speed-scaled lookahead (8 cm at 0.12 m/s), so it
+rounds these anchors. A local ideal-response run of the actual PathTracker at
+0.12 m/s produced extra right offsets about 0.93/1.43/1.94/3.24 cm at forward
+18.0/24.3/26.7/30.1 cm. A 0.08 m/s comparison produced 0.91/1.32/1.58/2.59 cm.
+This checks planning and tracker interaction, not drivetrain dynamics or measured
+clearance. No follower/speed/feedback/4 cm protection code is changed. The
+candidate remains validated:false and must start from freshly initialized P01.
+### Operator-requested P09/P10/P11 adjustment after staged-approach test
+
+The operator reported that P09->P10 remained close to the wall, and explicitly
+selected an additional 2 cm right shift of both P09 and P10 plus a 1 cm forward
+shift of P11's endpoint along its post-turn heading. These are fixed-P01 endpoint
+changes relative to 10d5e67, not a fresh odom rebase or a controller tolerance change.
+
+At heading -pi/2, body right is negative P01 x. New P09 is
+(1.3365502783181422,-1.5878885984779116); new P10 is
+(1.2549013479064715,-1.9655925989094274). Translate all P10 staged points by
+(-0.02,0), keeping their relative shape. Reinterpolate P08->P09 (11 points) from
+unchanged P08. After P10's clockwise turn, forward is negative P01 x: move P11's
+endpoint from x=0.9418674948445646 to x=0.9318674948445645, with y unchanged.
+Reinterpolate P10->P11 (eight points) and P11->P12 (18 points) to the unchanged P12
+endpoint. All intervals stay <=5 cm. P12 and all later endpoints, headings,
+terminal half-turn, speeds and protections stay fixed. Since P10's start also
+moves, the P11 endpoint shift does not mean its new segment length grows by 1 cm.
+
+This is an operator-directed candidate, not a measured collision-free corridor.
+The earlier 171305 scan table reported model gaps of -2.0/-4.2 mm for a full
+2 cm right shift at forward 6.1/8.5 cm after P09, so early right clearance is
+especially tight. The operator was informed before this update. Keep the original
+feedback/stop/4 cm protections and observation_only policy; do not turn these
+counterfactual scans into an automatic motion permission or claim hardware success.
+
+### 2026-10-25 staged front candidate
+
+`--corner-placement front` enables only P10 front-wall arrival at0.090 +/-0.005m body clearance, with explicit accepted endpoint and connector to the fixed P11+5cm target. P09 and other obstacle handling remain observation-only. `lidar` includes unvalidated P09 lane selection; the recorded P09 sample was BLOCKED, so use `front` for the next bounded engineering trial. Neither mode changes P01 origin, initial heading tolerance, feedback protection or4cm turn guard. Result `corner_placement` records actual mode; `laser_policy=observation_only` is not a claim of full-route avoidance.
+
+### 2026-10-25 sampled fixed P10 candidate
+
+The operator selected the stopped position from `front_wait_20261025_0340` as a fixed
+P10 candidate. Transform the final filtered pose (1.3659460116863873,
+-0.6598956072844562) through that run's recorded P01 (-0.32670598357368813,
+0.8315680134602398, yaw0.21480160875622412): P10=(1.335841813224953,
+-1.8179827169427831) in fixed P01 axes. This is historical sampling, never a
+live odom recovery target. Every new run must initialize at physical P01.
+
+Use `--corner-placement off` for this candidate: no new P10 laser arrival action.
+Laser observation and the existing freshness/stop/4cm protections remain.
+Resample P09->P10 and P10->P11 at <=5cm. Preserve P11's final explicit 5cm
+forward extension and all other actions/endpoints. The connector from new P10 to
+old P11 prefix is diagonal; neither free clearance nor a successful right turn is
+proven. Route validated remains false. The second laser trial timed out after
+246.367s with zero/release/closed recording all confirmed; it did not reach P11.
+Front samples varied (last rejected7.517cm), and stopped heading error about
+0.015rad also exceeded the0.01rad gate. Waiting alone did not resolve arrival.
+
+### Superseding P11 straight continuation — operator approved2026-10-25
+
+The operator approved keeping P11 on the new P10's forward line. The preceding
+18b6de7 connector would move87.864695mm toward P10's old front-wall direction;
+its geometry alone did not establish contact, but it counteracted the new stop point.
+P11 is now (0.8818674948445645,-1.8179827169427831), all of its path has constant
+P01 y, and its final explicit5cm forward extension remains. P12 connects to the
+original sample index3 (0.9307227510453786,-1.8100520547322465), then retains the
+remaining original path and final endpoint. No P12 sample retreats behind its new
+starting y. P10, all other actions, headings and protections are unchanged.
+Use corner-placement off. Geometry/schema/spacing and58 targeted checks pass;
+physical clearance, P10 right turn, P11 and full repeatability remain unverified.
+This supersedes the older diagonal P11 candidate, not any safety gate.
+
+### 2026-10-25 operator-approved staged P09 to P10 correction
+
+Trial fixed_p10_20261024_212059 reached P10 but stopped during its clockwise turn
+at the existing 4cm center-drift guard. Recording/zero/release checks passed.
+Its recorded scan predicts minimum footprint gap -3.91cm near52deg at the old
+center; shifting8cm right and4cm forward predicts1.92cm for that finite snapshot.
+This is diagnostic evidence, not collision-free certification; initial point gap
+was -5.90mm and unknown heights, drift and changing observations remain unverified.
+
+The operator approved8cm body-right and4cm forward relative to44af7ef P10.
+At heading-pi/2 this sets P10=(1.255841813224953,-1.8579827169427832).
+Do not jump laterally at arrival. P09->P10 advances12cm on the old lane, then
+uses right-offset knots1.5cm at18cm forward,4.5cm at23cm, and8cm at the endpoint.
+Keep the original small baseline lateral interpolation; every segment is <=4.5cm.
+P11 remains straight at the new P10 y, preserving its x endpoint and explicit
+final5cm forward extension. P12 adds one connector sample and rejoins the same
+old downstream samples. Other actions/headings/P15 half-turn remain unchanged.
+Use corner-placement off and unchanged speed.06/turn.20/start tolerance.010,
+feedback/stop/4cm guards and observation_only. validated remains false.
+
+## 2026-10-25 P13 clearance candidate
+
+User observed right-wall contact at P13 turn and toward P14. Extend P13 by 2 cm body-forward, then 2 cm body-left (heading -pi: negative P01 x/y). Shift the entire P14 line 2 cm negative P01 x and connect P15 from its updated start, preserving the P15 endpoint and final half-turn. P10/P11/P12 and all safety gates are unchanged. Geometry checks do not certify physical clearance; hardware validation pending.
+
+
+### Direction correction after hardware trial
+
+The preceding left-2cm/forward-2cm candidate triggered the existing 4cm drift stop at P13 and is superseded. User corrected the requested approach: relative to the original P13, first move body-right 2cm, then body-forward 3cm at heading -pi. This means positive P01 y 2cm, negative x 3cm. P14 keeps the negative-x 3cm line; omit the old first point to avoid a backward step. P15 reconnects with its remaining points/end unchanged. No guard thresholds changed; real clearance remains unverified.
+
+
+### P11 to P12 straight-line correction
+
+User requires P11 to P12 to drive straight after the turn, without the former body-right offset. All P12 samples now keep P11 endpoint P01 x=0.8818674948445645, retaining their original y and heading. P12 endpoint becomes (0.8818674948445645,-1.0915868730786444); P13 starts at that endpoint and rejoins its remaining samples. P13 right2cm/forward3cm correction remains relative to the original P13. Previous left2cm/forward2cm candidate is cancelled.
+
+
+### Post-success P14/P15 left-offset candidate
+
+4074cf1 completed all21 actions and terminal half-turn once. User requested P14 and P15 each move2cm body-left at their respective approach headings. P14 gradually adds negative-P01-x2cm, preserving its P13 start. P15 begins at updated P14 and gradually adds negative-P01-y2cm, preserving its endpoint x. Final half-turn heading and all guards unchanged. New version requires a new three-run streak; geometry does not certify physical clearance.
+
+
+## Official course command profile
+
+The existing pid_maze_solver ROS package exposes `ros2 run pid_maze_solver pid_maze_solver 2` and installs both scene YAML files. The bare scene2 entry now selects the proven .06m/s/.20rad/s/10mm-start/corner-off profile, preserving explicit overrides. It uses the same21-action manifest including terminal left180 and the same backend guards; the route is unchanged from3695f05. Auxiliary evidence recording can run separately. Official wall-avoidance scoring is not established by observation-only laser logging or exit0. No Task6 tag until acceptance is verified.

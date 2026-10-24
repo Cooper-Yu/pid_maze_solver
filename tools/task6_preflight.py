@@ -8,9 +8,55 @@ ODOM = ('/odometry/filtered', '/rosbot_xl_base_controller/odom')
 SCAN = '/scan_filtered'
 PUMP_DRAIN_MAX_CALLS = 16
 PUMP_DRAIN_BUDGET_S = 0.002
+OBSERVATION_SCAN_TIMEOUT = 1.0
 
 
-def validate_feedback(samples, now_ros, now_mono, stopped, *, stopped_scan_wait=False):
+def startup_source_fresh(item, now_ros, now_mono, timeout, topic):
+    """Age can wait before dispatch; invalid clocks cannot become readiness evidence."""
+    age, receipt_age = now_ros - item['stamp'], now_mono - item['receipt']
+    if (
+        not math.isfinite(age)
+        or item['stamp'] <= 0
+        or age < -0.1
+        or not math.isfinite(receipt_age)
+        or receipt_age < 0
+    ):
+        raise RuntimeError(f'Invalid startup feedback timestamp: {topic}')
+    return age <= timeout and receipt_age <= timeout
+
+
+def validate_feedback_value(topic, item, stopped):
+    """Frames, stop state and scan validity stay mandatory even during startup waits."""
+    if topic in ODOM:
+        if item['frame'] != 'odom' or item['child'] != 'base_link':
+            raise RuntimeError(f'Unexpected odometry frames: {topic}')
+        if stopped and (
+            math.hypot(*item['velocity'][:2]) >= 0.01 or abs(item['velocity'][2]) >= 0.02
+        ):
+            raise RuntimeError('Robot is not stopped')
+    elif item['valid_ranges'] < 20 or not item['frame']:
+        raise RuntimeError('Insufficient finite scan returns')
+
+
+def validate_feedback(
+    samples,
+    now_ros,
+    now_mono,
+    stopped,
+    *,
+    stopped_scan_wait=False,
+    scan_timeout=0.5,
+    stopped_feedback_wait=False,
+):
+    if (
+        isinstance(scan_timeout, bool)
+        or not isinstance(scan_timeout, (int, float))
+        or not math.isfinite(scan_timeout)
+        or not 0.5 <= scan_timeout <= OBSERVATION_SCAN_TIMEOUT
+    ):
+        raise ValueError('scan_timeout must be finite within 0.5..1.0 seconds')
+    if stopped_feedback_wait and not stopped:
+        raise ValueError('Feedback startup waiting requires stopped feedback')
     if stopped_scan_wait and not stopped:
         raise ValueError('Scan waiting requires stopped feedback')
     scan_fresh = True
@@ -24,19 +70,15 @@ def validate_feedback(samples, now_ros, now_mono, stopped, *, stopped_scan_wait=
                 raise RuntimeError('Insufficient finite scan returns')
             scan_fresh = age <= 0.5 and now_mono - item['receipt'] <= 0.5
             continue
-        if item is None or now_mono - item['receipt'] > 0.5:
+        timeout = scan_timeout if topic == SCAN else 0.5
+        if stopped_feedback_wait and item is not None:
+            fresh = startup_source_fresh(item, now_ros, now_mono, timeout, topic)
+            scan_fresh = scan_fresh and fresh
+        elif item is None or now_mono - item['receipt'] > timeout:
             raise RuntimeError(f'Missing/stale receipt: {topic}')
-        if not -0.1 <= now_ros - item['stamp'] <= 0.5:
+        if not stopped_feedback_wait and not -0.1 <= now_ros - item['stamp'] <= timeout:
             raise RuntimeError(f'Missing/stale source timestamp: {topic}')
-        if topic in ODOM:
-            if item['frame'] != 'odom' or item['child'] != 'base_link':
-                raise RuntimeError(f'Unexpected odometry frames: {topic}')
-            if stopped and (
-                math.hypot(*item['velocity'][:2]) >= 0.01 or abs(item['velocity'][2]) >= 0.02
-            ):
-                raise RuntimeError('Robot is not stopped')
-        elif item['valid_ranges'] < 20 or not item['frame']:
-            raise RuntimeError('Insufficient finite scan returns')
+        validate_feedback_value(topic, item, stopped)
     return scan_fresh
 
 
@@ -199,23 +241,48 @@ class Probe:
             last_pump=getattr(self, 'last_pump', None),
         )
 
-    def snapshot(self, stopped=True, expected=None, *, stopped_scan_wait=False):
+    def snapshot(
+        self,
+        stopped=True,
+        expected=None,
+        *,
+        stopped_scan_wait=False,
+        scan_timeout=0.5,
+        _feedback_paused=False,
+        stopped_feedback_wait=False,
+    ):
         self.last_check = dict(
             stopped=stopped,
             cmd_limit=0 if stopped else 1,
             stopped_scan_wait=stopped_scan_wait,
+            stopped_feedback_wait=stopped_feedback_wait,
+            scan_timeout=0.5 if stopped_scan_wait else scan_timeout,
+            odom_timeout=0.5,
+            feedback_paused=_feedback_paused,
             unix_time=time.time(),
             expected_gids=expected,
         )
         if self.failure:
             raise RuntimeError(self.failure)
-        scan_fresh = validate_feedback(
-            self.samples,
-            self.node.get_clock().now().nanoseconds / 1e9,
-            time.monotonic(),
-            stopped,
-            stopped_scan_wait=stopped_scan_wait,
-        )
+        if _feedback_paused:
+            from task6_feedback_pause import validate_paused_feedback
+
+            scan_fresh = validate_paused_feedback(
+                self.samples,
+                self.node.get_clock().now().nanoseconds / 1e9,
+                time.monotonic(),
+                scan_timeout,
+            )
+        else:
+            scan_fresh = validate_feedback(
+                self.samples,
+                self.node.get_clock().now().nanoseconds / 1e9,
+                time.monotonic(),
+                stopped,
+                stopped_scan_wait=stopped_scan_wait,
+                stopped_feedback_wait=stopped_feedback_wait,
+                scan_timeout=scan_timeout,
+            )
         gids = {topic: self.identities(topic) for topic in ODOM}
         if any(len(value) != 1 for value in gids.values()) or (
             expected is not None and gids != expected
@@ -240,12 +307,19 @@ class Probe:
             samples=self.samples.copy(),
             counts=self.counts.copy(),
             scan_fresh=scan_fresh,
+            feedback_fresh=scan_fresh,
             gids=gids,
             cmd_publishers=count,
             cmd_endpoints=deepcopy(endpoints),
             cmd_observed_at=observed_at,
             last_command=self.last_command,
             laser_to_base=dict(translation=[t.x, t.y, t.z], quaternion=[q.x, q.y, q.z, q.w]),
+        )
+
+    def paused_snapshot(self, expected, scan_timeout):
+        """Owner-acknowledged HOLD only; never a motion-ready or preflight result."""
+        return self.snapshot(
+            stopped=False, expected=expected, scan_timeout=scan_timeout, _feedback_paused=True
         )
 
     def ready(self, timeout=8):

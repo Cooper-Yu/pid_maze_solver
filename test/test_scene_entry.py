@@ -38,9 +38,9 @@ class SceneFiles(unittest.TestCase):
         self.assertEqual(len(route['actions']), 21)
         self.assertEqual(route['actions'][0]['points'][0], [0.0, 0.0])
         p13 = next(a for a in route['actions'] if a['name'] == 'P13')
-        self.assertEqual(p13['points'][-1], [0.4258019547712687, -1.0819099009985675])
+        self.assertEqual(p13['points'][-1], [0.39580195477126867, -1.0619099009985675])
         self.assertEqual(
-            route['actions'][-2]['points'][-1], [0.02899960878708014, -0.5596575672149936]
+            route['actions'][-2]['points'][-1], [0.02899960878708014, -0.5796575672149936]
         )
 
     def test_guarded_prefix_and_explicit_validation(self):
@@ -190,6 +190,35 @@ class EntryContract(unittest.TestCase):
             self.assertEqual(self.quiet_main(['2', '--dry-run']), 0)
             self.assertEqual(self.quiet_main(['2', '--waypoints', str(path)]), 2)
             run.assert_not_called()
+
+    def test_official_bare_scene2_uses_reviewed_profile_and_all_actions(self):
+        def check(command):
+            for flag, value in (
+                ('--speed', 0.06),
+                ('--turn-speed', 0.20),
+                ('--start-position-tolerance', 0.010),
+            ):
+                self.assertEqual(float(command[command.index(flag) + 1]), value)
+            self.assertEqual(command[command.index('--corner-placement') + 1], 'off')
+            payload = json.loads(Path(command[command.index('--route-json') + 1]).read_text())
+            self.assertEqual(len(payload['actions']), 21)
+            self.assertEqual(payload['actions'][-1]['name'], 'P15_after_turn')
+            return 0
+
+        with (
+            patch.object(maze_entry, 'executable', return_value='/fake/backend'),
+            patch.object(maze_entry, 'run_owned', side_effect=check) as run,
+        ):
+            self.assertEqual(self.quiet_main(['2']), 0)
+            run.assert_called_once()
+
+    def test_scene2_explicit_profile_overrides_defaults(self):
+        args, _ = maze_entry.parse_args(
+            ['2', '--speed', '.04', '--turn-speed', '.1', '--start-position-tolerance', '.005']
+        )
+        self.assertEqual(
+            (args.speed, args.turn_speed, args.start_position_tolerance), (0.04, 0.1, 0.005)
+        )
 
     def test_development_full_route_manifest_and_slow_turn_pass_through(self):
         def fake_backend(command):

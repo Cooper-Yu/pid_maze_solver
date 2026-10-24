@@ -104,6 +104,35 @@ def main():  # noqa: PLR0915 - one bounded node lifetime with unconditional clea
         else:
             raise AssertionError('Persistent stale scan was accepted')
 
+        # Same delivered scan is accepted only by the explicit observation policy.
+        validate_feedback(
+            probe.samples,
+            probe.node.get_clock().now().nanoseconds / 1e9,
+            time.monotonic(),
+            False,
+            scan_timeout=1.0,
+        )
+        report['observation_short_gap'] = dict(accepted=True, limit_s=1.0)
+        time.sleep(0.5)
+        msg.header.stamp = source.get_clock().now().to_msg()
+        for publisher in odom:
+            publisher.publish(msg)
+        time.sleep(0.02)
+        probe.pump()
+        try:
+            validate_feedback(
+                probe.samples,
+                probe.node.get_clock().now().nanoseconds / 1e9,
+                time.monotonic(),
+                False,
+                scan_timeout=1.0,
+            )
+        except RuntimeError as error:
+            assert SCAN in str(error), str(error)
+            report['observation_long_gap'] = dict(error=str(error), limit_s=1.0)
+        else:
+            raise AssertionError('Scan outage beyond one second was accepted')
+
         busy_count = 0
 
         def busy():
@@ -124,7 +153,7 @@ def main():  # noqa: PLR0915 - one bounded node lifetime with unconditional clea
         source.destroy_node()
         probe.close()
     (root / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
-    print('THREE_CASES_PASS', root, json.dumps(report), flush=True)
+    print('FIVE_CASES_PASS', root, json.dumps(report), flush=True)
 
 
 if __name__ == '__main__':

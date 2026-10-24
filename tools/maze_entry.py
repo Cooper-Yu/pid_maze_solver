@@ -69,14 +69,37 @@ def parse_args(argv):
     )
     parser.add_argument('--speed', type=bounded_value(0.01, 0.12))
     parser.add_argument('--turn-speed', type=bounded_value(0.02, 0.60))
+    parser.add_argument('--start-position-tolerance', type=bounded_value(0.005, 0.010))
+    parser.add_argument('--corner-placement', choices=('off', 'front', 'lidar'))
     parser.add_argument('--output', type=Path)
     args = parser.parse_args(values)
     if args.scene in (2, 3) and ros_args:
         parser.error(f'Scene {args.scene} does not accept unchecked ROS overrides')
     if args.scene in (1, 3) and any(
-        (args.destination, args.speed, args.turn_speed, args.output, args.supervised)
+        (
+            args.destination,
+            args.speed,
+            args.turn_speed,
+            args.output,
+            args.supervised,
+            args.start_position_tolerance is not None,
+            args.corner_placement is not None,
+        )
     ):
-        parser.error('Destination/speed/output/supervised are scene 2 options')
+        parser.error(
+            'Destination/speed/output/supervised/start-position-tolerance/corner-placement '
+            'are scene 2 options'
+        )
+    if args.scene == 2:
+        # Match the reviewed hardware profile when using the course's bare scene-2 command.
+        if args.speed is None:
+            args.speed = 0.06
+        if args.turn_speed is None:
+            args.turn_speed = 0.20
+        if args.start_position_tolerance is None:
+            args.start_position_tolerance = 0.010
+    if args.scene == 2 and args.corner_placement is None:
+        args.corner_placement = 'off'
     return args, ros_args
 
 
@@ -151,6 +174,8 @@ def backend_command(args, route_file, ros_args):
         ('--speed', args.speed),
         ('--turn-speed', args.turn_speed),
         ('--output', args.output),
+        ('--start-position-tolerance', getattr(args, 'start_position_tolerance', 0.005)),
+        ('--corner-placement', getattr(args, 'corner_placement', 'off')),
     ):
         if value is not None:
             command.extend((name, str(value)))

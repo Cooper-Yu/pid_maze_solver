@@ -8,7 +8,8 @@ import subprocess
 import sys
 import time
 
-from task6_preflight import ODOM, SCAN
+from task6_preflight import OBSERVATION_SCAN_TIMEOUT, ODOM, SCAN
+from task6_feedback_pause import SupervisorPause
 
 EVIDENCE_RATE = (*ODOM, SCAN, '/image_raw/compressed')
 EVIDENCE_ONCE = ('/tf_static',)
@@ -69,30 +70,36 @@ def recorder_health(root, previous=None):
     return session, data
 
 
-class StartupScanWait:
-    """Bound one stopped scan outage; fresh timestamps, not loop ticks, recover it."""
+class StartupFeedbackWait:
+    """No controller exists: wait at most five seconds for fresh stopped feedback."""
 
     def __init__(self):
         self.started = None
-        self.last_stamp = None
-        self.fresh_count = 0
+        self.baseline = None
 
     def ready(self, snapshot, now):
-        stamp = snapshot['samples'][SCAN]['stamp']
-        if not snapshot['scan_fresh'] and self.started is None:
-            self.started, self.last_stamp = now, stamp
+        stamps = {t: snapshot['samples'][t]['stamp'] for t in (*ODOM, SCAN)}
+        if not snapshot['feedback_fresh']:
+            if self.started is None:
+                self.started = now
+            self.baseline = None
         if self.started is None:
             return True
-        if now - self.started >= 2.0:
-            raise RuntimeError('Evidence startup scan wait exceeded 2 seconds')
-        if not snapshot['scan_fresh']:
-            self.last_stamp, self.fresh_count = stamp, 0
-        elif stamp > self.last_stamp:
-            self.last_stamp = stamp
-            self.fresh_count += 1
-        if self.fresh_count < 3:
+        if now - self.started >= 5.0:
+            raise RuntimeError('Stopped startup feedback wait exceeded 5 seconds')
+        if not snapshot['feedback_fresh']:
             return False
-        self.started, self.last_stamp, self.fresh_count = None, None, 0
+        if self.baseline is None:
+            self.baseline = (now, stamps, {t: 1 for t in stamps})
+            return False
+        since, previous, counts = self.baseline
+        for topic, stamp in stamps.items():
+            if stamp > previous[topic]:
+                counts[topic] += 1
+                previous[topic] = stamp
+        if now - since < 0.3 or min(counts.values()) < 3:
+            return False
+        self.started = self.baseline = None
         return True
 
 
@@ -156,14 +163,14 @@ class Operation:
             self.directory / 'watch.log',
         )
         deadline, first = time.monotonic() + 18, None
-        scan_wait = StartupScanWait()
+        feedback_wait = StartupFeedbackWait()
         while time.monotonic() < deadline:
             self.probe.pump()
             self.check_limits()
             observed = self.probe.snapshot(
-                stopped=True, expected=self.identities, stopped_scan_wait=True
+                stopped=True, expected=self.identities, stopped_feedback_wait=True
             )
-            scan_ready = scan_wait.ready(observed, time.monotonic())
+            feedback_ready = feedback_wait.ready(observed, time.monotonic())
             self.require_evidence_alive()
             try:
                 session, health = recorder_health(self.directory / 'evidence')
@@ -172,15 +179,15 @@ class Operation:
                     continue
                 if health['unix_time'] == first['unix_time']:
                     continue
-                recorder_health(self.directory / 'evidence', first['message_counts'])
+                if feedback_ready:
+                    recorder_health(self.directory / 'evidence', first['message_counts'])
             except (FileNotFoundError, json.JSONDecodeError):
                 continue
             except RuntimeError:
                 if first is not None:
                     raise
                 continue
-            if scan_ready:
-                self.probe.snapshot(stopped=True, expected=self.identities)
+            if feedback_ready:
                 self.recorder_session, self.last_health = session, health
                 self.last_growth = time.monotonic()
                 return
@@ -194,17 +201,32 @@ class Operation:
         self.require_evidence_alive()
         session, health = recorder_health(self.directory / 'evidence')
         if health['unix_time'] != self.last_health['unix_time']:
-            recorder_health(self.directory / 'evidence', self.last_health['message_counts'])
+            previous = (
+                None
+                if getattr(self, 'feedback_waiting', False)
+                else self.last_health['message_counts']
+            )
+            recorder_health(self.directory / 'evidence', previous)
             self.last_health, self.last_growth = health, time.monotonic()
         if time.monotonic() - self.last_growth > 8:
             raise RuntimeError('Recorder growth timeout')
         self.recorder_session = session
 
-    def execute(self):
-        self.start_evidence()
-        self.check_limits()
+    def wait_before_dispatch(self):
+        wait = StartupFeedbackWait()
+        while True:
+            self.probe.pump()
+            self.check_limits()
+            self.require_evidence_alive()
+            current = self.probe.snapshot(
+                stopped=True, expected=self.identities, stopped_feedback_wait=True
+            )
+            if wait.ready(current, time.monotonic()):
+                return
+
+    def build_command(self):
         # No session import: official scene2 always verifies a fresh P01 itself.
-        command = [
+        return [
             self.config['entry'],
             '2',
             '--destination',
@@ -217,16 +239,36 @@ class Operation:
             str(self.config.get('speed', 0.04)),
             '--turn-speed',
             str(self.config.get('turn_speed', 0.10)),
+            '--start-position-tolerance',
+            str(self.config.get('start_position_tolerance', 0.005)),
+            '--corner-placement',
+            self.config.get('corner_placement', 'off'),
         ]
-        write_json(self.directory / 'motion_command.json', command)
-        self.phase = 'official_runner'
+
+    def execute(self):
+        self.start_evidence()
         self.check_limits()
-        self.probe.snapshot(stopped=True, expected=self.identities)
+        command = self.build_command()
+        write_json(self.directory / 'motion_command.json', command)
+        self.phase = 'pre_dispatch_feedback'
+        self.check_limits()
+        self.wait_before_dispatch()
         self.runner = spawn(command, self.directory / 'motion.log')
+        self.phase = 'official_runner'
+        feedback_pause = SupervisorPause(self.directory)
         while self.runner.poll() is None:
             self.probe.pump()
             self.check_limits()
-            self.probe.snapshot(stopped=False, expected=self.identities)
+            feedback_pause.observe(
+                self.probe,
+                self.identities,
+                scan_timeout=(
+                    OBSERVATION_SCAN_TIMEOUT
+                    if self.config.get('laser_policy') == 'observation_only'
+                    else 0.5
+                ),
+            )
+            self.feedback_waiting = feedback_pause.acknowledged
             self.check_recording()
         if self.runner.returncode != 0:
             raise RuntimeError(f'Official scene2 exited {self.runner.returncode}')
@@ -324,6 +366,7 @@ class Operation:
             destination=self.config['destination'],
             task6_acceptance=False,
             laser_policy='observation_only',
+            corner_placement=self.config.get('corner_placement', 'off'),
         )
         write_json(self.directory / 'result.json', result)
         return 0 if result['success'] else 2

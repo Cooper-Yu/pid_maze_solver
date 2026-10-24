@@ -17,12 +17,58 @@ from task6_preflight import ODOM, SCAN, Probe, validate_feedback
 
 
 class AdmissionTest(unittest.TestCase):
-    def test_full_p15_success_requires_terminal_completion(self):
+    def test_active_scan_timeout_is_scoped_to_observation_policy(self):
         with tempfile.TemporaryDirectory() as folder:
             operation = Operation.__new__(Operation)
             operation.directory = Path(folder)
-            operation.config = dict(entry='fake', destination='P15', waypoints='fake.yaml')
+            operation.config = dict(entry='fake', destination='P12', waypoints='fake.yaml')
             operation.start_evidence = Mock()
+            operation.wait_before_dispatch = Mock()
+            operation.check_limits = Mock()
+            operation.check_recording = Mock()
+            operation.probe = Mock()
+            operation.identities = {}
+            (operation.directory / 'points.jsonl').write_text(
+                json.dumps(dict(event='route_completed', destination='P12'))
+            )
+            for policy, timeout in (('observation_only', 1.0), ('enforced', 0.5), (None, 0.5)):
+                operation.config['laser_policy'] = policy
+                operation.probe.reset_mock()
+                child = Mock(returncode=0)
+                child.poll.side_effect = [None, 0]
+                with patch('task6_ops_runtime.spawn', return_value=child):
+                    operation.execute()
+                calls = operation.probe.snapshot.call_args_list
+                operation.wait_before_dispatch.assert_called()
+                self.assertEqual(
+                    calls[0].kwargs, dict(stopped=False, expected={}, scan_timeout=timeout)
+                )
+
+    def test_full_p15_success_requires_terminal_completion(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = Path(__file__).resolve().parents[1]
+            entry = root / 'pid_maze_solver'
+            entry.write_text('fake')
+            entry.chmod(0o700)
+            support = root / 'tools/task6_ops'
+            support.mkdir(parents=True)
+            for name in ('common.py', 'evidence_recorder.py', 'odom_reset_watch.py'):
+                (support / name).write_text('# readonly')
+            packages = {
+                'pid_maze_solver': dict(source=str(source), share=str(source), library=str(root)),
+                'distance_controller': dict(source=str(root)),
+            }
+            args = SimpleNamespace(
+                workspace=root,
+                deadline=time.time() + 1000,
+                max_seconds=300,
+                speed=0.12,
+                turn_speed=0.20,
+            )
+            operation = Operation.__new__(Operation)
+            operation.start_evidence = Mock()
+            operation.wait_before_dispatch = Mock()
             operation.check_limits = Mock()
             operation.probe = Mock()
             operation.identities = {}
@@ -36,20 +82,33 @@ class AdmissionTest(unittest.TestCase):
                 ([dict(event='route_completed', destination='P15')], False),
                 ([complete], False),
                 ([dict(terminal, name='P15'), complete], False),
+                ([terminal, dict(complete, final_action='P15')], False),
                 ([terminal, complete], True),
-                ([dict(event='route_completed', destination='P12')], True),
             )
-            for rows, valid in cases:
-                operation.config['destination'] = rows[-1]['destination']
-                (operation.directory / 'points.jsonl').write_text(
-                    '\n'.join(json.dumps(row) for row in rows)
-                )
-                with self.subTest(rows=rows), patch('task6_ops_runtime.spawn', return_value=child):
-                    if valid:
-                        operation.execute()
-                    else:
-                        with self.assertRaisesRegex(RuntimeError, 'terminal evidence'):
+            for destination in ('P15', 'P15_after_turn'):
+                args.destination = destination
+                args.run_dir = root / destination
+                with patch.object(ops, 'provenance', return_value=packages):
+                    self.assertEqual(ops.prepare(args), 0)
+                operation.directory = args.run_dir
+                operation.config = json.loads((args.run_dir / 'config.json').read_text())
+                self.assertEqual(operation.config['destination'], 'P15')
+                preview = json.loads((args.run_dir / 'route_preview.json').read_text())
+                self.assertEqual(len(preview['actions']), 21)
+                self.assertEqual(preview['actions'][-1]['name'], 'P15_after_turn')
+                for rows, valid in cases:
+                    (operation.directory / 'points.jsonl').write_text(
+                        '\n'.join(json.dumps(row) for row in rows)
+                    )
+                    with (
+                        self.subTest(destination=destination, rows=rows),
+                        patch('task6_ops_runtime.spawn', return_value=child),
+                    ):
+                        if valid:
                             operation.execute()
+                        else:
+                            with self.assertRaisesRegex(RuntimeError, 'terminal evidence'):
+                                operation.execute()
 
     def test_explicit_run_location_and_time_bounds(self):
         for argv in (
@@ -147,6 +206,50 @@ class AdmissionTest(unittest.TestCase):
 
 
 class FeedbackTest(unittest.TestCase):
+    def test_observation_scan_timeout_preserves_strict_odometry_and_startup(self):
+        for age in (0.65, 0.99):
+            samples = self.samples()
+            samples[SCAN].update(stamp=100.1 - age, receipt=10.1 - age)
+            with self.subTest(age=age), self.assertRaises(RuntimeError):
+                validate_feedback(samples, 100.1, 10.1, False)
+            self.assertTrue(validate_feedback(samples, 100.1, 10.1, False, scan_timeout=1.0))
+            self.assertFalse(
+                validate_feedback(
+                    samples, 100.1, 10.1, True, stopped_scan_wait=True, scan_timeout=1.0
+                )
+            )
+        for topic in (*ODOM, SCAN):
+            for field, current in (('stamp', 100.1), ('receipt', 10.1)):
+                samples = self.samples()
+                samples[topic][field] = current - (1.01 if topic == SCAN else 0.51)
+                with self.subTest(topic=topic, field=field), self.assertRaises(RuntimeError):
+                    validate_feedback(samples, 100.1, 10.1, False, scan_timeout=1.0)
+        for changes in (
+            dict(stamp=100.3),
+            dict(stamp=float('nan')),
+            dict(valid_ranges=19),
+            dict(frame=''),
+        ):
+            samples = self.samples()
+            samples[SCAN].update(changes)
+            with self.subTest(changes=changes), self.assertRaises(RuntimeError):
+                validate_feedback(samples, 100.1, 10.1, False, scan_timeout=1.0)
+        for timeout in (0.49, 1.01, float('nan'), float('inf'), True, '1.0'):
+            with self.subTest(timeout=timeout), self.assertRaises(ValueError):
+                validate_feedback(self.samples(), 100.1, 10.1, False, scan_timeout=timeout)
+
+    def test_snapshot_records_selected_timeout_and_default_stays_strict(self):
+        probe = self.diagnostic_probe()
+        probe.samples[SCAN].update(stamp=99.45, receipt=9.45)
+        with patch('task6_preflight.time.monotonic', return_value=10.1):
+            with self.assertRaises(RuntimeError):
+                probe.snapshot(stopped=False)
+            probe.snapshot(stopped=False, scan_timeout=1.0)
+            self.assertEqual(probe.last_check['scan_timeout'], 1.0)
+            self.assertEqual(probe.last_check['odom_timeout'], 0.5)
+            self.assertFalse(probe.snapshot(stopped_scan_wait=True, scan_timeout=1.0)['scan_fresh'])
+            self.assertEqual(probe.last_check['scan_timeout'], 0.5)
+
     def samples(self):
         samples = {
             t: dict(receipt=10, stamp=100, frame='odom', child='base_link', velocity=[0, 0, 0])
