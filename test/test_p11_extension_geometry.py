@@ -34,15 +34,16 @@ class P11ExtensionGeometry(unittest.TestCase):
         dx, dy = after[0] - before[0], after[1] - before[1]
         self.assertAlmostEqual(dx * math.cos(heading) + dy * math.sin(heading), 0.05)
         self.assertAlmostEqual(-dx * math.sin(heading) + dy * math.cos(heading), 0.0)
-        self.assertEqual(after, [0.8818674948445645, -1.9058474122860602])
+        self.assertEqual(after, [0.8818674948445645, -1.8179827169427831])
 
-    def test_p12_rejoins_old_second_sample_without_breaking_five_cm_spacing(self):
+    def test_p11_stays_straight_and_p12_rejoins_without_retreat_to_old_wall(self):
+        p10 = self.actions['P10']['points'][-1]
+        self.assertTrue(all(p[1] == p10[1] for p in self.actions['P11']['points']))
         points = self.actions['P12']['points']
         self.assertEqual(points[0], self.actions['P11']['points'][-1])
-        self.assertEqual(points[2], [0.9312951229449715, -1.8579497335091535])
-        for axis in (0, 1):
-            self.assertAlmostEqual(points[1][axis], (points[0][axis] + points[2][axis]) / 2)
-        self.assertGreater(math.dist(points[0], points[2]), 0.05)
+        self.assertEqual(points[1], [0.9307227510453786, -1.8100520547322465])
+        self.assertTrue(all(p[1] >= p10[1] for p in points))
+        self.assertEqual(points[-1], [0.9221371725514836, -1.0915868730786444])
         for first, second in zip(points, points[1:]):
             self.assertTrue(0 < math.dist(first, second) <= 0.050000001)
         validate_real(self.route)
@@ -66,8 +67,8 @@ class P11ExtensionGeometry(unittest.TestCase):
                 all(0 < math.dist(x, y) <= 0.050000001 for x, y in zip(points, points[1:]))
             )
         self.assertEqual(
-            geometry_hash(self.actions['P12']['points'][2:]),
-            '8640ad523f383d48fd0f13afda6f94c3b2fe505146417db6b361d4ef62c9096d',
+            geometry_hash(self.actions['P12']['points'][1:]),
+            'aa2284de793e3c235904907b05029bde088d9cee193dbd03085f87d42d94dc72',
         )
         self.assertEqual(self.actions['P12']['heading_rad'], -3 * math.pi / 2)
 

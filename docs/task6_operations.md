@@ -460,3 +460,17 @@ proven. Route validated remains false. The second laser trial timed out after
 246.367s with zero/release/closed recording all confirmed; it did not reach P11.
 Front samples varied (last rejected7.517cm), and stopped heading error about
 0.015rad also exceeded the0.01rad gate. Waiting alone did not resolve arrival.
+
+### Superseding P11 straight continuation — operator approved2026-10-25
+
+The operator approved keeping P11 on the new P10's forward line. The preceding
+18b6de7 connector would move87.864695mm toward P10's old front-wall direction;
+its geometry alone did not establish contact, but it counteracted the new stop point.
+P11 is now (0.8818674948445645,-1.8179827169427831), all of its path has constant
+P01 y, and its final explicit5cm forward extension remains. P12 connects to the
+original sample index3 (0.9307227510453786,-1.8100520547322465), then retains the
+remaining original path and final endpoint. No P12 sample retreats behind its new
+starting y. P10, all other actions, headings and protections are unchanged.
+Use corner-placement off. Geometry/schema/spacing and58 targeted checks pass;
+physical clearance, P10 right turn, P11 and full repeatability remain unverified.
+This supersedes the older diagonal P11 candidate, not any safety gate.
