@@ -90,8 +90,14 @@ def parse_args(argv):
             'Destination/speed/output/supervised/start-position-tolerance/corner-placement '
             'are scene 2 options'
         )
-    if args.scene == 2 and args.start_position_tolerance is None:
-        args.start_position_tolerance = 0.005
+    if args.scene == 2:
+        # Match the reviewed hardware profile when using the course's bare scene-2 command.
+        if args.speed is None:
+            args.speed = 0.06
+        if args.turn_speed is None:
+            args.turn_speed = 0.20
+        if args.start_position_tolerance is None:
+            args.start_position_tolerance = 0.010
     if args.scene == 2 and args.corner_placement is None:
         args.corner_placement = 'off'
     return args, ros_args

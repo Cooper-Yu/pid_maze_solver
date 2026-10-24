@@ -513,3 +513,8 @@ User requires P11 to P12 to drive straight after the turn, without the former bo
 ### Post-success P14/P15 left-offset candidate
 
 4074cf1 completed all21 actions and terminal half-turn once. User requested P14 and P15 each move2cm body-left at their respective approach headings. P14 gradually adds negative-P01-x2cm, preserving its P13 start. P15 begins at updated P14 and gradually adds negative-P01-y2cm, preserving its endpoint x. Final half-turn heading and all guards unchanged. New version requires a new three-run streak; geometry does not certify physical clearance.
+
+
+## Official course command profile
+
+The existing pid_maze_solver ROS package exposes `ros2 run pid_maze_solver pid_maze_solver 2` and installs both scene YAML files. The bare scene2 entry now selects the proven .06m/s/.20rad/s/10mm-start/corner-off profile, preserving explicit overrides. It uses the same21-action manifest including terminal left180 and the same backend guards; the route is unchanged from3695f05. Auxiliary evidence recording can run separately. Official wall-avoidance scoring is not established by observation-only laser logging or exit0. No Task6 tag until acceptance is verified.
