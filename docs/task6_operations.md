@@ -498,3 +498,13 @@ feedback/stop/4cm guards and observation_only. validated remains false.
 ## 2026-10-25 P13 clearance candidate
 
 User observed right-wall contact at P13 turn and toward P14. Extend P13 by 2 cm body-forward, then 2 cm body-left (heading -pi: negative P01 x/y). Shift the entire P14 line 2 cm negative P01 x and connect P15 from its updated start, preserving the P15 endpoint and final half-turn. P10/P11/P12 and all safety gates are unchanged. Geometry checks do not certify physical clearance; hardware validation pending.
+
+
+### Direction correction after hardware trial
+
+The preceding left-2cm/forward-2cm candidate triggered the existing 4cm drift stop at P13 and is superseded. User corrected the requested approach: relative to the original P13, first move body-right 2cm, then body-forward 3cm at heading -pi. This means positive P01 y 2cm, negative x 3cm. P14 keeps the negative-x 3cm line; omit the old first point to avoid a backward step. P15 reconnects with its remaining points/end unchanged. No guard thresholds changed; real clearance remains unverified.
+
+
+### P11 to P12 straight-line correction
+
+User requires P11 to P12 to drive straight after the turn, without the former body-right offset. All P12 samples now keep P11 endpoint P01 x=0.8818674948445645, retaining their original y and heading. P12 endpoint becomes (0.8818674948445645,-1.0915868730786444); P13 starts at that endpoint and rejoins its remaining samples. P13 right2cm/forward3cm correction remains relative to the original P13. Previous left2cm/forward2cm candidate is cancelled.

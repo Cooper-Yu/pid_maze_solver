@@ -41,9 +41,10 @@ class P11ExtensionGeometry(unittest.TestCase):
         self.assertTrue(all(p[1] == p10[1] for p in self.actions['P11']['points']))
         points = self.actions['P12']['points']
         self.assertEqual(points[0], self.actions['P11']['points'][-1])
-        self.assertEqual(points[2], [0.9307227510453786, -1.8100520547322465])
+        self.assertTrue(all(p[0] == self.actions['P11']['points'][-1][0] for p in points))
         self.assertTrue(all(p[1] >= p10[1] for p in points))
-        self.assertEqual(points[-1], [0.9221371725514836, -1.0915868730786444])
+        self.assertEqual(points[-1], [0.8818674948445645, -1.0915868730786444])
+        self.assertEqual(self.actions['P13']['points'][0], points[-1])
         for first, second in zip(points, points[1:]):
             self.assertTrue(0 < math.dist(first, second) <= 0.050000001)
         validate_real(self.route)
@@ -66,16 +67,15 @@ class P11ExtensionGeometry(unittest.TestCase):
             if forward <= 0.120000001:
                 self.assertAlmostEqual(right, 0.0)
 
-    def test_p13_forward_then_left_and_p14_stays_away_from_right_wall(self):
-        points = self.actions['P13']['points']
-        before, forward, left = points[-3:]
-        self.assertAlmostEqual(forward[0] - before[0], -0.02)
-        self.assertEqual(forward[1], before[1])
-        self.assertEqual(left[0], forward[0])
-        self.assertAlmostEqual(left[1] - forward[1], -0.02)
+    def test_p13_right_then_forward_and_p14_line_continuity(self):
+        before, right, forward = self.actions['P13']['points'][-3:]
+        self.assertEqual(right[0], before[0])
+        self.assertAlmostEqual(right[1] - before[1], 0.02)
+        self.assertAlmostEqual(forward[0] - right[0], -0.03)
+        self.assertEqual(forward[1], right[1])
         p14 = self.actions['P14']['points']
-        self.assertEqual(p14[0], left)
-        self.assertTrue(all(p[0] <= left[0] + 1e-12 for p in p14))
+        self.assertEqual(p14[0], forward)
+        self.assertTrue(all(p[0] <= forward[0] + 1e-12 for p in p14))
         self.assertTrue(all(b[1] > a[1] for a, b in zip(p14, p14[1:])))
         self.assertEqual(self.actions['P15']['points'][0], p14[-1])
         self.assertEqual(
@@ -105,10 +105,6 @@ class P11ExtensionGeometry(unittest.TestCase):
             self.assertTrue(
                 all(0 < math.dist(x, y) <= 0.050000001 for x, y in zip(points, points[1:]))
             )
-        self.assertEqual(
-            geometry_hash(self.actions['P12']['points'][2:]),
-            'aa2284de793e3c235904907b05029bde088d9cee193dbd03085f87d42d94dc72',
-        )
         self.assertEqual(self.actions['P12']['heading_rad'], -3 * math.pi / 2)
 
 

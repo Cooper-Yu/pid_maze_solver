@@ -38,7 +38,7 @@ class SceneFiles(unittest.TestCase):
         self.assertEqual(len(route['actions']), 21)
         self.assertEqual(route['actions'][0]['points'][0], [0.0, 0.0])
         p13 = next(a for a in route['actions'] if a['name'] == 'P13')
-        self.assertEqual(p13['points'][-1], [0.4058019547712687, -1.1019099009985676])
+        self.assertEqual(p13['points'][-1], [0.39580195477126867, -1.0619099009985675])
         self.assertEqual(
             route['actions'][-2]['points'][-1], [0.02899960878708014, -0.5596575672149936]
         )
