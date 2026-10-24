@@ -8,6 +8,32 @@ it cannot satisfy the Task6 laser-avoidance or repeated-full-route acceptance.
 
 ## Preparation and explicit motion
 
+### Bounded start-position tolerance (2026-10-25)
+
+`prepare --start-position-tolerance 0.010` explicitly selects a 1 cm tolerance
+for the fresh P01 position initialization. The default remains `0.005` m;
+only finite values in the closed interval `[0.005, 0.010]` are accepted.
+The value is persisted as `config.json` `start_position_tolerance` and passed
+through `Operation.build_command()` to the official scene2 entry and then to
+`distance_controller/task6_route_runner --start-position-tolerance`.
+The backend maps it to `precise_start_position_tolerance`. Old manifests lacking
+the field retain `0.005` without rewriting the stored manifest; all existing
+deadline, provenance and source/install matching checks still apply.
+
+The option is scene2-only: scenes1/3 accept omission and reject explicit use.
+This changes only the requested initialization position tolerance. Heading,
+feedback, 4 cm displacement, micro-adjustment guards, route geometry and speeds
+are unchanged; it adds no P02 dynamic correction or session-resume capability.
+After an authorized source update, create a fresh reviewed run manifest rather
+than bypassing provenance checks on an older run.
+
+Local Ubuntu-22.04 checks for the frontend slice:
+`python3 -m ruff check tools/task6_ops.py tools/task6_ops_runtime.py tools/maze_entry.py`
+passed; `python3 -m pytest -q test/test_task6_ops.py test/test_scene_entry.py`
+passed 40 tests. Independent new parameter tests, the coordinated colcon build
+and target-environment verification are separate gates. No ROS, cloud or
+hardware execution occurred in this slice.
+
 After the reviewed Git update, build and source the workspace as usual. Both
 packages must be in `~/ros2_ws/src`, with their Git history, plus the existing
 `turn_controller` checkout. The source support scripts live at

@@ -224,11 +224,9 @@ class Operation:
             if wait.ready(current, time.monotonic()):
                 return
 
-    def execute(self):
-        self.start_evidence()
-        self.check_limits()
+    def build_command(self):
         # No session import: official scene2 always verifies a fresh P01 itself.
-        command = [
+        return [
             self.config['entry'],
             '2',
             '--destination',
@@ -241,7 +239,14 @@ class Operation:
             str(self.config.get('speed', 0.04)),
             '--turn-speed',
             str(self.config.get('turn_speed', 0.10)),
+            '--start-position-tolerance',
+            str(self.config.get('start_position_tolerance', 0.005)),
         ]
+
+    def execute(self):
+        self.start_evidence()
+        self.check_limits()
+        command = self.build_command()
         write_json(self.directory / 'motion_command.json', command)
         self.phase = 'pre_dispatch_feedback'
         self.check_limits()
