@@ -50,7 +50,9 @@ def collect(runner, reference, cancellation, seconds=20):
                 {side: asdict(fit_wall(points, counts, side)) for side in ('front', 'right')},
                 reference[1],
             )
-            if runner.cached_stamp == seen:
+            if runner.cached_stamp == seen or (
+                samples and time.monotonic() - samples[-1]['time'] < 0.10
+            ):
                 continue
             seen = runner.cached_stamp
             samples.append(

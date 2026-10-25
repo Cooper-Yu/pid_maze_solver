@@ -122,7 +122,9 @@ def plan(samples):
     )
     if abs(yaw) > math.radians(0.5):
         result['action'] = 'turn'
-        result['angle_rad'] = max(-math.radians(2), min(math.radians(2), -0.5 * yaw))
+        # Below the follower's .01 rad arrival tolerance, half-gain would request no motion.
+        gain = 1.0 if abs(yaw) < 0.02 else 0.5
+        result['angle_rad'] = max(-math.radians(2), min(math.radians(2), -gain * yaw))
     elif math.hypot(x, y) > 0.008:
         forward, left = (
             -math.cos(yaw) * x - math.sin(yaw) * y,

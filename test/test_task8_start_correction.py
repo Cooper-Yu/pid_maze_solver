@@ -55,7 +55,7 @@ def test_coarse_eight_cm_can_plan_but_original_registration_stays_strict():
         qualify_samples(samples(x=0.08))
 
 
-@pytest.mark.parametrize('yaw,expected', [(6, -2), (-6, 2), (2, -1), (-2, 1)])
+@pytest.mark.parametrize('yaw,expected', [(6, -2), (-6, 2), (2, -1), (-2, 1), (1, -1), (-1, 1)])
 def test_turn_first_half_gain_and_cap(yaw, expected):
     result = plan(samples(x=0.08, y=0.03, yaw=math.radians(yaw)))
     assert result['action'] == 'turn'
