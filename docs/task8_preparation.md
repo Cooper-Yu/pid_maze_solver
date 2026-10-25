@@ -152,3 +152,7 @@ recording and an external reservation deadline supervisor remain recommended for
 their presence does not add options to the actual official solver command.
 
 Local checks are not official grading. Real bare-command verification is still required.
+
+### 2026-10-26 P13 additional right 3 cm
+
+Operator approved another body-right 3 cm at forward P13 (total 6 cm from the straight baseline). P12 stays fixed; P12-to-P13 approaches the new endpoint gradually. P13 forward offset remains 2 cm. P14 starts at the shifted P13 and reconnects its unchanged endpoint; reverse geometry stays independently calibrated. Candidate endpoint is (0.3458019547712686, -1.0015868730786444) in the P01 frame. Local 96 tests, Ruff and Humble build passed; real-robot verification remains pending.
