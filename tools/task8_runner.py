@@ -87,6 +87,12 @@ def run_actions(console, actions, cancellation, localized_start=False):
         cancellation.check()
         console.runner.feedback_pause.check()
         console.emit('route_action_started', index=index, name=action.name)
+        if index == 0 and localized_start:
+            console.emit('localized_initial_heading', heading_rad=action.heading_rad)
+            console.move(
+                turn_to_heading(console.book.origin, console.runner.pose(), action.heading_rad)
+            )
+            console.record('P15_heading_aligned')
         if action.kind == 'turn':
             motion = (
                 Motion('turn', angle=math.pi)

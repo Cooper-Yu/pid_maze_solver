@@ -85,3 +85,31 @@ def test_first_edge_keeps_final_waypoints_and_fixed_heading():
     )
     with pytest.raises(RuntimeError):
         localized_first_edge(motion, Pose(0.0, 0.0, 0.0), Pose(0.051, 0.0, 0.0))
+
+
+def test_existing_heading_pid_precedes_first_localized_path():
+    from types import SimpleNamespace as N
+    from unittest.mock import Mock
+    from task8_runner import run_actions
+
+    pose = N(value=Pose(-0.015, -0.018, math.radians(5)))
+    calls = []
+
+    def move(m):
+        calls.append(m)
+        if m.kind == 'turn':
+            pose.value = Pose(pose.value.x, pose.value.y, 0.0)
+
+    motion = Motion('path', angle=0.0, points=((0.0, 0.0), (0.2, 0.0), (0.4, 0.1)))
+    runner = N(pose=lambda: pose.value, feedback_pause=N(check=Mock()))
+    console = N(
+        runner=runner, book=N(origin=Pose(0.0, 0.0, 0.0)), emit=Mock(), move=move, record=Mock()
+    )
+    action = N(name='P14', kind='path', heading_rad=0.0, path_motion=lambda: motion)
+    run_actions(console, [action], N(check=Mock()), localized_start=True)
+    assert calls[0].kind == 'turn'
+    assert calls[0].angle == pytest.approx(-math.radians(5))
+    assert calls[1].kind == 'path'
+    assert calls[1].points[-2:] == motion.points[-2:]
+    assert calls[1].angle == 0.0
+    assert console.book.origin == Pose(0.0, 0.0, 0.0)
