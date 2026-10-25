@@ -113,4 +113,7 @@ def align(runner, reference, cancellation, audit, path, emitter):
         console.move(Motion('turn', angle=turn))
         check_stage()
         emitter('p15_coarse_heading_turn_completed', index=index, requested_rad=turn)
+        if abs(correction) <= math.radians(15):
+            emitter('p15_coarse_heading_handoff', position_verified=False)
+            return
     raise RuntimeError('P15 coarse heading did not converge')

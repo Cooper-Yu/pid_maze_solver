@@ -117,6 +117,34 @@ def run_actions(console, actions, cancellation, localized_start=False):
     console.runner.pose()
 
 
+def prepare_start(args, runner, cancellation, initialize, *, audit, path, emitter):
+    """Try existing localization; acquire coarse heading only when it cannot qualify."""
+    if getattr(args, 'p15_start', 'precise') == 'localized':
+        from task8_coarse_heading_runner import align
+        from task8_p15_start import load_reference, start_qualifier, validate_source
+
+        book_source = validate_source(args.source_book, args.source_bag, args.endpoint)
+        reference = load_reference(
+            book_source, args.source_bag, args.endpoint, args.p15_observation
+        )
+        start_qualifier(reference, args.p15_start, args.p15_observation)
+        try:
+            origin = initialize(
+                runner, args.source_book, args.source_bag, args.endpoint, cancellation
+            )
+        except RuntimeError as error:
+            if not str(error).startswith('P15 initialization wait expired:'):
+                raise
+            emitter('p15_coarse_heading_required', reason=str(error))
+            align(runner, reference, cancellation, audit, path, emitter)
+            origin = initialize(
+                runner, args.source_book, args.source_bag, args.endpoint, cancellation
+            )
+    else:
+        origin = initialize(runner, args.source_book, args.source_bag, args.endpoint, cancellation)
+    return origin
+
+
 def session(args, path, audit, actions, initialize):
     from motion_console import Console, TeachingBook
     from route_feedback_pause import RouteFeedbackPause
@@ -149,18 +177,8 @@ def session(args, path, audit, actions, initialize):
             runner.exclusive()  # Allow DDS discovery before immutable publisher binding.
             runner.feedback_pause = RouteFeedbackPause(runner, emitter, cancellation.check)
             cancellation.check()
-            if getattr(args, 'p15_start', 'precise') == 'localized':
-                from task8_coarse_heading_runner import align
-                from task8_p15_start import load_reference, start_qualifier, validate_source
-
-                book_source = validate_source(args.source_book, args.source_bag, args.endpoint)
-                reference = load_reference(
-                    book_source, args.source_bag, args.endpoint, args.p15_observation
-                )
-                start_qualifier(reference, args.p15_start, args.p15_observation)
-                align(runner, reference, cancellation, audit, path, emitter)
-            origin = initialize(
-                runner, args.source_book, args.source_bag, args.endpoint, cancellation
+            origin = prepare_start(
+                args, runner, cancellation, initialize, audit=audit, path=path, emitter=emitter
             )
             if not all(math.isfinite(v) for v in (origin.x, origin.y, origin.yaw)):
                 raise ValueError('P15 initialization returned nonfinite origin')

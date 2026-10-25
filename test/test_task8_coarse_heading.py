@@ -141,7 +141,7 @@ def test_align_uses_only_existing_turn_pid_then_remeasures(monkeypatch, tmp_path
         lambda event, **data: events.append((event, data)),
     )
     assert moves == pytest.approx([math.radians(15), 0.04])
-    assert events[-1][0] == 'p15_coarse_heading_ready'
+    assert events[-1][0] == 'p15_coarse_heading_handoff'
     assert events[-1][1]['position_verified'] is False
 
 
@@ -206,6 +206,8 @@ def test_session_checks_policy_before_align_and_localizes_afterward(
 
     def initialize(*args):
         order.append('initialize')
+        if order.count('initialize') == 1:
+            raise RuntimeError('P15 initialization wait expired: wall unavailable')
         raise RuntimeError('final initialization still required')
 
     args = SimpleNamespace(
@@ -222,7 +224,7 @@ def test_session_checks_policy_before_align_and_localizes_afterward(
         with pytest.raises((RuntimeError, ValueError)):
             task8_runner.session(args, tmp_path / 'route.json', io.StringIO(), [], initialize)
         run.assert_not_called()
-    expected = ['policy'] + ([] if invalid_policy else ['align'])
+    expected = ['policy'] + ([] if invalid_policy else ['initialize', 'align'])
     if not invalid_policy and not align_failure:
         expected.append('initialize')
     assert order == expected + ['closed']
