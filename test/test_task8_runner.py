@@ -123,8 +123,9 @@ class Contracts(unittest.TestCase):
         actions = model.validate_manifest(model.select_reverse(self.route, 'P13'))
         origin = Pose(1, 2, 0.3)
         records = []
+        discovery_order = []
         fake_runner = types.SimpleNamespace(
-            exclusive=lambda: None,
+            exclusive=lambda: discovery_order.append('discovered'),
             frame='odom',
             stop_translation=lambda: None,
             stop_owned=lambda: None,
@@ -132,6 +133,11 @@ class Contracts(unittest.TestCase):
             request_cancel=lambda: None,
         )
         fake_pause = types.SimpleNamespace(check=lambda: None)
+
+        def bind_feedback(*_args):
+            self.assertEqual(discovery_order[-1:], ['discovered'])
+            discovery_order.append('bound')
+            return fake_pause
 
         class Book:
             def __init__(self, path, value, frame):
@@ -155,7 +161,7 @@ class Contracts(unittest.TestCase):
         audit = io.StringIO()
         with (
             patch('wall_runtime.WallRunner', return_value=fake_runner),
-            patch('route_feedback_pause.RouteFeedbackPause', return_value=fake_pause),
+            patch('route_feedback_pause.RouteFeedbackPause', side_effect=bind_feedback),
             patch('motion_console.TeachingBook', Book),
             patch('motion_console.Console', Console),
             patch.object(task8_runner, 'run_actions'),
@@ -170,7 +176,7 @@ class Contracts(unittest.TestCase):
         audit = io.StringIO()
         with (
             patch('wall_runtime.WallRunner', return_value=fake_runner),
-            patch('route_feedback_pause.RouteFeedbackPause', return_value=fake_pause),
+            patch('route_feedback_pause.RouteFeedbackPause', side_effect=bind_feedback),
             patch('task6_route_runner.close_runner') as close,
         ):
             with self.assertRaisesRegex(RuntimeError, 'init failure'):
