@@ -82,6 +82,7 @@ def parse_args(argv):
         choices=('two_wall_tls', 'front_heading_fixed_reference_side'),
         default='two_wall_tls',
     )
+    parser.add_argument('--p15-start', choices=('precise', 'localized'), default='precise')
     parser.add_argument('--source-book', type=Path)
     parser.add_argument('--source-bag', type=Path)
     parser.add_argument('--forward-route', type=Path)
@@ -188,6 +189,8 @@ def backend_command(args, route_file, ros_args):
             executable('pid_maze_solver', 'task8_runner'),
             '--route-json',
             str(route_file),
+            '--p15-start',
+            args.p15_start,
             '--p15-observation',
             args.p15_observation,
             '--source-book',

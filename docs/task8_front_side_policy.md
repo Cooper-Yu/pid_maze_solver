@@ -9,3 +9,9 @@ source/current右墙投影patch变换后须75%重叠，沿墙中心差<=5cm；�
 相对配准5cm/5deg、最终每帧2cm/1deg、12独立扫描/1秒、双停稳批次、当前epoch及TF安装一致、唯一速度源、失鲜停车/恢复和4cm转向保护保持。实际精度仍是观测估计，不能由合成测试宣称真值保证。通过初始化不等于Task8路线通过。
 
 原默认两TLS策略和其独立1.5deg一致门未删除；新模型明确为单朝向源，避免错误描述“保留了独立双墙朝向一致性”。完整Notebook评分及正式Task8标签仍待。
+
+## 2026-10-26 用户批准直接复用逆推路线：localized handoff
+
+显式--p15-start localized：停止状态12独立新帧>=1s、双odom稳定、墙质量/安装TF/同patch/朝向与位置两批稳定仍须通过；允许起点位于名义P15的5cm/8deg内。此是定位并保留偏差，不是宣称已原地精细对齐。当前epoch origin=odom_current*inverse(measured_pose_in_nominal)，不直接把当前odom标名义零点。
+
+只有首个动作允许5cm/8deg局部接续：将当前测得位置接回第一段下一个已有点，细分边长<=5cm，后续所有原点/heading保留；后续每次转后接续仍原2cm/1deg。默认precise路径和其最终2cm/1deg未修改。前序失败2Dservo不再调用，不重启旧episode或扩大其运动预算。本功能属于新独立路线测试；失鲜/唯一速度源/4cm转向保护/截止及录包保持。

@@ -125,8 +125,15 @@ def current_sample(runner, reference):
         from task8_p15_localization import register_walls
 
         current = observe(points, counts, walls)
-        observed = estimate(walls, current, source)
-        relative = register_walls(walls, current)
+        if walls.get('_localized_handoff'):
+            from task8_start_correction import coarse_estimate
+
+            observed = coarse_estimate(walls, current, source)
+            observed.pop('heading_disagreement')
+            relative = coarse_estimate(walls, current, dict(x=0.0, y=0.0, yaw=0.0))
+        else:
+            observed = estimate(walls, current, source)
+            relative = register_walls(walls, current)
         require_patch(walls, current, relative)
     else:
         current = {s: asdict(fit_wall(points, counts, s)) for s in ('front', 'right')}
@@ -141,8 +148,28 @@ def current_sample(runner, reference):
     )
 
 
+def start_qualifier(reference, start_mode, observation_policy):
+    if start_mode not in ('precise', 'localized'):
+        raise ValueError('Unknown P15 start mode')
+    if start_mode == 'localized':
+        if observation_policy != 'front_heading_fixed_reference_side':
+            raise ValueError('Localized handoff requires explicit fixed-reference wall observation')
+        reference[0]['_localized_handoff'] = True
+    if start_mode == 'localized':
+        from task8_p15_localization import qualify_handoff_samples
+
+        return qualify_handoff_samples
+    return qualify_samples
+
+
 def initialize(
-    runner, source_book, source_bag, endpoint, cancellation, observation_policy='two_wall_tls'
+    runner,
+    source_book,
+    source_bag,
+    endpoint,
+    cancellation,
+    observation_policy='two_wall_tls',
+    start_mode='precise',
 ):
     """Wait up to 20s for qualified fresh stopped batches; never publish velocity."""
     from action_plan import Pose
@@ -150,6 +177,7 @@ def initialize(
     cancellation.check()
     book = validate_source(source_book, source_bag, endpoint)
     reference = load_reference(book, source_bag, endpoint, observation_policy)
+    qualifier = start_qualifier(reference, start_mode, observation_policy)
     pause = runner.feedback_pause
     samples = deque(maxlen=12)
     seen = None
@@ -191,7 +219,7 @@ def initialize(
                 continue
             seen = sample['scan_stamp']
             samples.append(sample)
-            estimate = qualify_samples(list(samples))
+            estimate = qualifier(list(samples))
         except (ValueError, RuntimeError) as error:
             last_reason = str(error)
             if len(samples) == 12:
@@ -204,7 +232,8 @@ def initialize(
             continue
         origin = origin_from_current(sample['odom'], estimate)
         emitter(
-            'p15_start_verified',
+            'p15_localized_handoff' if start_mode == 'localized' else 'p15_start_verified',
+            aligned_start=start_mode == 'precise',
             sample_count=len(samples),
             observation=sample.get('observation'),
             estimate=estimate,

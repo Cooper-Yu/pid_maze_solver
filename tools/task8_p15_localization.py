@@ -98,6 +98,16 @@ def require_source_sequences(samples):
 
 
 def qualify_samples(samples):
+    """Precise aligned start; unchanged default 2cm/1deg contract."""
+    return _qualify_stopped(samples, 0.02, math.radians(1), '2cm/1deg')
+
+
+def qualify_handoff_samples(samples):
+    """Located near P15, not aligned: preserve offset for the existing first path."""
+    return _qualify_stopped(samples, 0.05, math.radians(8), '5cm/8deg localized handoff')
+
+
+def _qualify_stopped(samples, position_limit, yaw_limit, label):
     """Require two agreeing stopped batches and every estimate inside the 2cm/1deg gate."""
     from statistics import median
 
@@ -117,10 +127,11 @@ def qualify_samples(samples):
             raise ValueError('P15 moved during initialization')
         if abs(math.remainder(pose['yaw'] - first['yaw'], 2 * math.pi)) > 0.01:
             raise ValueError('P15 turned during initialization')
-        if math.hypot(estimate['x'], estimate['y']) > 0.02 or abs(estimate['yaw']) > math.radians(
-            1
+        if (
+            math.hypot(estimate['x'], estimate['y']) > position_limit
+            or abs(estimate['yaw']) > yaw_limit
         ):
-            raise ValueError('P15 estimate outside nominal 2cm/1deg gate')
+            raise ValueError('P15 estimate outside nominal ' + label + ' gate')
     half = len(samples) // 2
     centers = [
         {k: median(s['estimate'][k] for s in group) for k in ('x', 'y', 'yaw')}

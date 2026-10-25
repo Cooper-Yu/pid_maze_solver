@@ -52,7 +52,32 @@ def terminal_guard(console, action):
         console.command_guard = previous
 
 
-def run_actions(console, actions, cancellation):
+def localized_first_edge(motion, origin, actual):
+    """Connect a measured near-P15 pose; keep every later waypoint and heading."""
+    from dataclasses import replace
+    from motion_model import local_delta
+
+    delta = local_delta(origin, actual)
+    position = (delta['x_m'], delta['y_m'])
+    heading_error = math.remainder(math.radians(delta['yaw_deg']) - motion.angle, 2 * math.pi)
+    if math.dist(position, motion.points[0]) > 0.05 or abs(heading_error) > math.radians(8):
+        raise RuntimeError('Localized first edge outside 5cm/8deg handoff region')
+    target = motion.points[1]
+    distance = math.dist(position, target)
+    if distance <= 1e-9:
+        raise RuntimeError('Localized first edge duplicates target')
+    count = math.ceil(distance / 0.05)
+    prefix = tuple(
+        (
+            position[0] + (target[0] - position[0]) * i / count,
+            position[1] + (target[1] - position[1]) * i / count,
+        )
+        for i in range(count)
+    )
+    return replace(motion, points=(*prefix, *motion.points[1:]))
+
+
+def run_actions(console, actions, cancellation, localized_start=False):
     from motion_model import Motion
     from task6_route_model import reconnect_route
     from teaching_path import turn_to_heading
@@ -71,7 +96,10 @@ def run_actions(console, actions, cancellation):
         else:
             motion = action.path_motion()
             if after_turn:
-                motion = reconnect_route(motion, console.book.origin, console.runner.pose())
+                connector = (
+                    localized_first_edge if index == 0 and localized_start else reconnect_route
+                )
+                motion = connector(motion, console.book.origin, console.runner.pose())
                 console.emit('post_turn_reconnect', adjusted=asdict(motion))
         with terminal_guard(console, action):
             console.move(motion)
@@ -127,7 +155,12 @@ def session(args, path, audit, actions, initialize):
             console = Console(runner, book, cancellation, audit, args.turn_speed)
             console.record('P15')  # P01 would overwrite the fixed origin in TeachingBook.
             emitter('preparation_handoff', origin=asdict(origin), frame='P15')
-            run_actions(console, actions, cancellation)
+            run_actions(
+                console,
+                actions,
+                cancellation,
+                localized_start=getattr(args, 'p15_start', 'precise') == 'localized',
+            )
         finally:
             close_runner(runner)
         cancellation.check()
@@ -152,6 +185,7 @@ def arguments(argv=None):
         choices=('two_wall_tls', 'front_heading_fixed_reference_side'),
         default='two_wall_tls',
     )
+    parser.add_argument('--p15-start', choices=('precise', 'localized'), default='precise')
     parser.add_argument('--route-json', type=Path, required=True)
     parser.add_argument('--source-book', type=Path, required=True)
     parser.add_argument('--source-bag', type=Path, required=True)
@@ -210,7 +244,9 @@ def main(argv=None):
                         audit,
                         actions,
                         lambda *values: initialize(
-                            *values, observation_policy=args.p15_observation
+                            *values,
+                            observation_policy=args.p15_observation,
+                            start_mode=args.p15_start,
                         ),
                     )
                 except (Exception, KeyboardInterrupt) as error:
