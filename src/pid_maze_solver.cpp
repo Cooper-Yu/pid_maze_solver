@@ -10,6 +10,7 @@
 #include "pid_maze_solver/motion.hpp"
 #include "pid_maze_solver/pid.hpp"
 #include "pid_maze_solver/route.hpp"
+#include "pid_maze_solver/terminal_clearance.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "tf2/LinearMath/Matrix3x3.h"
@@ -443,7 +444,10 @@ private:
    */
   void center_from_sides()
   {
-    if (!side_centering_ || steps_.empty() || !moving_ || scan_stamp_ <= center_scan_) return;
+    if (
+      !side_centering_ || steps_.empty() || !moving_ || terminal_positioning_ ||
+      terminal_restoring_ || scan_stamp_ <= center_scan_)
+      return;
     center_scan_ = scan_stamp_;
     const auto & step = steps_[index_ - 1];
     if (
@@ -478,6 +482,7 @@ private:
    */
   double translation_limit() const
   {
+    if (terminal_positioning_ || terminal_restoring_) return .03;
     double limit = steps_.empty() ? speed_ : std::min(speed_, steps_[index_ - 1].max_speed);
     const double distance = std::hypot(tx_ - x_, ty_ - y_);
     limit = std::min(limit, .12 + .6 * std::max(0.0, distance - .12));
@@ -540,25 +545,78 @@ private:
     return true;
   }
 
-  /** @brief Start the selected signed half-turn from the actual stopped final-point heading.
-   * @par Terminal action
-   * complete_stage() calls this only after the complete route reaches its final point.
-   * odom() accumulates accepted signed yaw increments; tick() reads the remaining rotation.
-   * @note No new XY waypoint, initialization or translation is requested. Obstacle recovery
-   * translation is disabled for this action; blocked rotation still stops and faults.
-   */
-  void begin_final_turn()
+  /** @brief Start a bounded terminal translation while keeping the terminal heading. */
+  void terminal_move(double x, double y, bool restoring)
   {
+    terminal_positioning_ = !restoring;
+    terminal_restoring_ = restoring;
+    final_turn_active_ = false;
+    moving_ = true;
+    tx_ = x;
+    ty_ = y;
+    heading_ = terminal_heading_ + (restoring ? final_turn_delta_ : 0.0);
+    reset();
+    stage_started_ = Clock::now();
+    stage_ros_started_ = now();
+    RCLCPP_INFO(
+      get_logger(), "TERMINAL_%s target=(%.6f,%.6f) speed_limit=0.030",
+      restoring ? "RESTORE" : "PLACEMENT", tx_, ty_);
+  }
+
+  /** @brief Begin signed rotation only after the separately guarded placement completes. */
+  void start_final_rotation()
+  {
+    terminal_positioning_ = false;
     final_turn_active_ = true;
     final_rotation_ = 0.0;
     moving_ = false;
-    heading_ = yaw_ + final_turn_delta_;
+    heading_ = terminal_heading_ + final_turn_delta_;
     reset();
     stage_started_ = Clock::now();
     stage_ros_started_ = now();
     RCLCPP_INFO(
       get_logger(), "Final %s turn: start=%.6f target=%.6f delta=%.6f rad",
       final_turn_delta_ > 0 ? "counterclockwise" : "clockwise", yaw_, heading_, final_turn_delta_);
+  }
+
+  /** @brief Preserve the stopped goal; select <=20mm placement with full-sweep margin. */
+  void begin_final_turn()
+  {
+    terminal_x_ = x_;
+    terminal_y_ = y_;
+    terminal_heading_ = yaw_;
+    std::optional<std::array<double, 2>> placement;
+    try {
+      placement = maze::terminal_placement(points_, final_turn_delta_);
+    } catch (const std::invalid_argument &) {
+      fail("TERMINAL_INVALID_SCAN");
+      return;
+    }
+    if (!placement) {
+      fail("TERMINAL_NO_CLEAR_PLACEMENT");
+      return;
+    }
+    terminal_offset_used_ = std::hypot((*placement)[0], (*placement)[1]) > 1e-9;
+    if (!terminal_offset_used_) {
+      start_final_rotation();
+      return;
+    }
+    const double c = std::cos(yaw_), s = std::sin(yaw_);
+    terminal_move(
+      x_ + c * (*placement)[0] - s * (*placement)[1],
+      y_ + s * (*placement)[0] + c * (*placement)[1], false);
+  }
+
+  /** @brief Report full completion only after rotation and any required goal restoration. */
+  void finish_terminal_route()
+  {
+    stop();
+    RCLCPP_INFO(
+      get_logger(), "Final %s turn completed: rotation=%.6f error=%.6f rad",
+      final_turn_delta_ > 0 ? "counterclockwise" : "clockwise", final_rotation_,
+      final_turn_delta_ - final_rotation_);
+    RCLCPP_INFO(get_logger(), "Route completed; stopped.");
+    rclcpp::shutdown();
   }
 
   /** @brief Complete a stopped TURN or MOVE and select the next state.
@@ -575,12 +633,19 @@ private:
     const bool ready = settled(true);
     log_turn_settling(e);
     if (!ready) return;
+    if (terminal_positioning_) {
+      start_final_rotation();
+      return;
+    }
+    if (terminal_restoring_) {
+      finish_terminal_route();
+      return;
+    }
     if (final_turn_active_) {
-      RCLCPP_INFO(
-        get_logger(), "Final %s turn completed: rotation=%.6f error=%.6f rad",
-        final_turn_delta_ > 0 ? "counterclockwise" : "clockwise", final_rotation_, e);
-      RCLCPP_INFO(get_logger(), "Route completed; stopped.");
-      rclcpp::shutdown();
+      if (terminal_offset_used_)
+        terminal_move(terminal_x_, terminal_y_, true);
+      else
+        finish_terminal_route();
       return;
     }
     if (!moving_) {
@@ -630,11 +695,18 @@ private:
       return;
     }
     last_ = now();
+    if (
+      (terminal_positioning_ || terminal_restoring_ || final_turn_active_) &&
+      std::hypot(x_ - terminal_x_, y_ - terminal_y_) > .03) {
+      fail("TERMINAL_CENTER_BOUND");
+      return;
+    }
     center_from_sides();
     const double e =
       final_turn_active_ ? final_turn_delta_ - final_rotation_ : maze::wrap(heading_ - yaw_);
     const double distance = std::hypot(tx_ - x_, ty_ - y_);
-    bool close = std::abs(e) < .01 && (!moving_ || distance < .015);
+    const double position_tolerance = (terminal_positioning_ || terminal_restoring_) ? .003 : .015;
+    bool close = std::abs(e) < .01 && (!moving_ || distance < position_tolerance);
     if (close) {
       complete_stage(distance, e);
       return;
@@ -682,7 +754,13 @@ private:
     final_turn_enabled_{};  ///< Append selected 180 degrees after the full route, not last_point trials.
   double final_turn_delta_{
     -M_PI};  ///< Signed terminal target: clockwise negative, counterclockwise positive.
-  bool final_turn_active_{};  ///< Terminal rotation only; no MOVE or clearance translation.
+  bool final_turn_active_{};     ///< Signed terminal rotation, separate from placement/restoration.
+  bool terminal_positioning_{};  ///< Bounded pre-turn motion checked by unchanged safety guard.
+  bool terminal_restoring_{};    ///< Return to original stopped goal before completion.
+  bool terminal_offset_used_{};  ///< Whether a post-turn restoration is required.
+  double terminal_x_{};          ///< Original stopped goal x, odom meters.
+  double terminal_y_{};          ///< Original stopped goal y, odom meters.
+  double terminal_heading_{};    ///< Original stopped goal heading, odom radians.
   double
     final_rotation_{};  ///< Signed odom yaw accumulated since terminal entry, radians; clockwise negative.
   bool side_centering_{};  ///< Enables gated bilateral wall centering for forward motion.
