@@ -53,4 +53,4 @@ endif()
 ament_package()
 
 install(PROGRAMS tools/task8_runner.py DESTINATION lib/${PROJECT_NAME} RENAME task8_runner)
-install(FILES tools/task8_route_model.py tools/task8_p15_start.py tools/task8_p15_localization.py tools/task8_p15_probe.py DESTINATION lib/${PROJECT_NAME})
+install(FILES tools/task8_route_model.py tools/task8_p15_start.py tools/task8_p15_localization.py tools/task8_p15_probe.py tools/task8_start_correction.py tools/task8_start_correct_runner.py DESTINATION lib/${PROJECT_NAME})
