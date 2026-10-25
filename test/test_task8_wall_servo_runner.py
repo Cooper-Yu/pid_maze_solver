@@ -102,3 +102,18 @@ def test_expired_scan_zeroes_then_resumes_only_fresh_samples():
     assert any(call.args[0] == 'wall_servo_freshness_wait' for call in c.emit.call_args_list)
     assert all(call.args[0] == (0.0, 0.0, 0.0) for call in r.send.call_args_list)
     c.stop_motion.assert_called_once_with()
+
+
+def test_zero_wait_time_is_not_charged_as_nonzero_rotation():
+    clock, r, c, cancel, sample = fixture()
+
+    def waiting(*args):
+        if 1.4 < clock.value < 12:
+            raise ValueError('Wall temporarily unavailable')
+        value = sample(*args)
+        value['estimate']['yaw'] = 0.04 if clock.value < 12.5 else 0.0
+        return value
+
+    with patch.object(runtime, 'current_sample', side_effect=waiting):
+        runtime.servo(c, None, cancel, lambda: clock.value)
+    c.stop_motion.assert_called_once_with()

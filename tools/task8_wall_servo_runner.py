@@ -33,8 +33,17 @@ def servo(console, reference, cancellation, clock=time.monotonic):  # noqa: PLR0
     held = None
     seen = None
     samples = deque(maxlen=3)
-    travel_angle = 0.0
-    previous = started
+    exposure = dict(angle=0.0, previous=started, command=(0.0, 0.0, 0.0))
+
+    def send(command):
+        now = clock()
+        exposure['angle'] += abs(exposure['command'][2]) * max(0.0, now - exposure['previous'])
+        exposure.update(previous=now, command=command)
+        if exposure['angle'] > math.radians(8):
+            r.send((0.0, 0.0, 0.0))
+            raise RuntimeError('Wall servo requested angular budget exceeds 8deg')
+        r.send(command)
+
     r.assert_exclusive()
     r.velocity_pub = r.node.create_publisher(r.twist, '/cmd_vel', 10)
     try:
@@ -48,7 +57,7 @@ def servo(console, reference, cancellation, clock=time.monotonic):  # noqa: PLR0
             try:
                 sample = current_sample(r, reference)
             except (ValueError, RuntimeError) as error:
-                r.send((0.0, 0.0, 0.0))
+                send((0.0, 0.0, 0.0))
                 samples.clear()
                 held = None
                 console.emit('wall_servo_observation_wait', reason=str(error))
@@ -59,13 +68,13 @@ def servo(console, reference, cancellation, clock=time.monotonic):  # noqa: PLR0
                 samples.append(sample)
                 seen = sample['scan_stamp']
             if len(samples) < 3:
-                r.send((0.0, 0.0, 0.0))
+                send((0.0, 0.0, 0.0))
                 continue
             estimate = {k: median(s['estimate'][k] for s in samples) for k in ('x', 'y', 'yaw')}
             source_age = (r.node.get_clock().now().nanoseconds - seen) / 1e9
             receipt_age = time.monotonic() - r.observer.received
             if not -0.1 <= source_age <= 0.30 or not 0 <= receipt_age <= 0.30:
-                r.send((0.0, 0.0, 0.0))
+                send((0.0, 0.0, 0.0))
                 samples.clear()
                 held = None
                 console.emit(
@@ -75,12 +84,7 @@ def servo(console, reference, cancellation, clock=time.monotonic):  # noqa: PLR0
             command, ready = velocity(
                 estimate, drift, now - started, source_age, time.monotonic() - r.observer.received
             )
-            # Never integrate a delayed callback into an unbounded command budget.
-            travel_angle += abs(command[2]) * max(0.0, now - previous)
-            previous = now
-            if travel_angle > math.radians(8):
-                raise RuntimeError('Wall servo requested angular budget exceeds 8deg')
-            r.send(command)
+            send(command)
             console.emit(
                 'wall_servo_feedback',
                 estimate=estimate,

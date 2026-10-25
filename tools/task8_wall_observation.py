@@ -11,9 +11,14 @@ def observe(points, counts, reference=None):
     front = fit_wall(points, counts, 'front')
     if front.span < 0.30 or front.rms > 0.008:
         raise ValueError('P15 long-front heading observation unavailable')
-    diagnostic = fit_wall(points, counts, 'right')
+    try:
+        diagnostic = asdict(fit_wall(points, counts, 'right'))
+    except ValueError as error:
+        if reference is None:
+            raise
+        diagnostic = dict(unavailable=str(error))
     theta = 0.0 if reference is None else reference['front']['angle'] - front.angle
-    angle = diagnostic.angle if reference is None else reference['right']['angle'] - theta
+    angle = diagnostic['angle'] if reference is None else reference['right']['angle'] - theta
     selected = [
         p
         for p in points
@@ -33,7 +38,7 @@ def observe(points, counts, reference=None):
         right=asdict(right),
         _policy='front_heading_fixed_reference_side',
         _patch=dict(low=min(patch), high=max(patch), center=median(patch)),
-        _right_tls=asdict(diagnostic),
+        _right_tls=diagnostic,
     )
     return result
 

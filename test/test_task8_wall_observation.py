@@ -82,3 +82,21 @@ def test_front_short_span_rejected():
     with patch('wall_geometry.fit_wall', return_value=replace(wall, span=0.29)):
         with pytest.raises(ValueError, match='long-front'):
             observe(points, counts)
+
+
+def test_current_unused_tls_failure_does_not_replace_constrained_distance_quality():
+    points, counts = cloud()
+    reference = observe(points, counts)
+    from wall_geometry import fit_wall
+
+    def diagnostic_missing(p, c, side):
+        if side == 'right':
+            raise ValueError('Diagnostic TLS unavailable')
+        return fit_wall(p, c, side)
+
+    with patch('wall_geometry.fit_wall', side_effect=diagnostic_missing):
+        current = observe(points, counts, reference)
+    assert 'unavailable' in current['_right_tls']
+    assert current['right']['count'] * 5 >= current['right']['raw_count'] * 4
+    actual = estimate(reference, current, dict(x=0, y=0, yaw=0))
+    require_patch(reference, current, actual)
