@@ -86,3 +86,19 @@ def test_raw_odometry_center_drift_always_stops():
             runtime.servo(c, None, cancel, lambda: clock.value)
     c.stop_motion.assert_called_once_with()
     r.send.assert_not_called()
+
+
+def test_expired_scan_zeroes_then_resumes_only_fresh_samples():
+    clock, r, c, cancel, sample = fixture()
+
+    def delayed(*args):
+        s = sample(*args)
+        if clock.value < 1.7:
+            s['scan_stamp'] -= 400_000_000
+        return s
+
+    with patch.object(runtime, 'current_sample', side_effect=delayed):
+        runtime.servo(c, None, cancel, lambda: clock.value)
+    assert any(call.args[0] == 'wall_servo_freshness_wait' for call in c.emit.call_args_list)
+    assert all(call.args[0] == (0.0, 0.0, 0.0) for call in r.send.call_args_list)
+    c.stop_motion.assert_called_once_with()

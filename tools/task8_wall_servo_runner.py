@@ -63,6 +63,15 @@ def servo(console, reference, cancellation, clock=time.monotonic):  # noqa: PLR0
                 continue
             estimate = {k: median(s['estimate'][k] for s in samples) for k in ('x', 'y', 'yaw')}
             source_age = (r.node.get_clock().now().nanoseconds - seen) / 1e9
+            receipt_age = time.monotonic() - r.observer.received
+            if not -0.1 <= source_age <= 0.30 or not 0 <= receipt_age <= 0.30:
+                r.send((0.0, 0.0, 0.0))
+                samples.clear()
+                held = None
+                console.emit(
+                    'wall_servo_freshness_wait', source_age_s=source_age, receipt_age_s=receipt_age
+                )
+                continue
             command, ready = velocity(
                 estimate, drift, now - started, source_age, time.monotonic() - r.observer.received
             )
