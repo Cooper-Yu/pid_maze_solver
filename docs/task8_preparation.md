@@ -108,3 +108,8 @@ Operator request: P10->P11 forward +3 cm; P11->P12 forward +3 cm. P12->P13 is st
 ## 2026-10-26 P13 next trial after forward protection stop
 
 4fa916d reached P13 but its turn exceeded the unchanged4cm drift guard; publisher0 and recorder closure verified, reverse never started. Operator now requests P13 body-right3cm and body-forward2cm. At heading-pi this means P01-frame delta(-.02,+.03)m. Approach interpolates from unchanged P12 to new P13, superseding the earlier straight-only request. P14 starts continuously and rejoins unchanged endpoint; other actions and reverse YAML are unchanged. No claim of clearance improvement before hardware verification.
+
+
+## Reverse P06 adjustment after partial return
+
+Operator requested P06 body-back2cm with P07 fixed. At arrival heading+pi/2 this is P15-frame delta(0,-.02)m. P07 remains byte-equivalent; P07-to-P06 interpolates sideways and backward to the new endpoint, then P05 rejoins its original endpoint. Forward geometry is unchanged. Previous a95805b forward completed all21 actions/terminal turn; reverse completed P05 then signal2 cancellation, not full success. New reverse clearance still needs physical verification.
