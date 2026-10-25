@@ -26,8 +26,17 @@ def test_checked_in_candidate_has_only_approved_p07_extension(routes):
     actual_actions = {a['name']: a for a in actual['actions']}
     expected_actions = {a['name']: a for a in expected['actions']}
     for name, action in expected_actions.items():
-        if name not in ('P07', 'P06'):
+        if name not in ('P07', 'P06', 'P03', 'P02', 'P01'):
             assert actual_actions[name] == action
+    p3, old3 = actual_actions['P03'], expected_actions['P03']
+    assert p3['points'][0] == old3['points'][0]
+    assert p3['points'][-1] == pytest.approx([old3['points'][-1][0], old3['points'][-1][1] - 0.03])
+    for name in ('P02', 'P01'):
+        actual, old = actual_actions[name], expected_actions[name]
+        assert actual['heading_rad'] == old['heading_rad']
+        for point, original in zip(actual['points'], old['points']):
+            assert point == pytest.approx([original[0], original[1] - 0.03])
+    assert actual_actions['P02']['points'][0] == p3['points'][-1]
     p7, p6 = actual_actions['P07'], actual_actions['P06']
     old7, old6 = expected_actions['P07'], expected_actions['P06']
     assert p7['points'][0] == old7['points'][0]
