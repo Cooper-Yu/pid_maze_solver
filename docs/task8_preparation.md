@@ -99,3 +99,7 @@ prefix. It records P15 without overwriting the nominal origin, reconnects the fi
 path and every post-turn path, and uses the existing controller protections. Prefix
 completion is not full success; only P01 plus signed CCW+pi can finish the full route.
 The Task6 tag and forward geometry remain unchanged. Hardware validation is pending.
+
+## 2026-10-26 06:00 forward candidate
+
+Operator request: P10->P11 forward +3 cm; P11->P12 forward +3 cm. P12->P13 is straight from the new P12, with P13 shifted longitudinally with P11 and no previous lateral tail. P14 starts at new P13 and rejoins its unchanged endpoint; P15, all headings, terminal turn and safety limits are unchanged. Reverse YAML remains the separately calibrated 754adcd candidate; do not regenerate it from this forward edit. Physical clearance remains to be tested.

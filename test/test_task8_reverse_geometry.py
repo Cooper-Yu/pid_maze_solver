@@ -18,42 +18,23 @@ def routes():
     return forward, reverse_real(forward)
 
 
-def test_checked_in_candidate_has_only_approved_p07_extension(routes):
-    import yaml
+def test_independently_calibrated_reverse_is_preserved():
+    import hashlib
 
-    _, expected = routes
-    actual = yaml.safe_load((ROOT / 'waypoints/reverse_waypoints_real.yaml').read_text())
-    actual_actions = {a['name']: a for a in actual['actions']}
-    expected_actions = {a['name']: a for a in expected['actions']}
-    for name, action in expected_actions.items():
-        if name not in ('P07', 'P06', 'P03', 'P02', 'P01'):
-            assert actual_actions[name] == action
-    p3, old3 = actual_actions['P03'], expected_actions['P03']
-    assert p3['points'][0] == old3['points'][0]
-    assert p3['points'][-1] == pytest.approx([old3['points'][-1][0], old3['points'][-1][1] - 0.03])
-    for name in ('P02', 'P01'):
-        actual, old = actual_actions[name], expected_actions[name]
-        assert actual['heading_rad'] == old['heading_rad']
-        for point, original in zip(actual['points'], old['points']):
-            assert point == pytest.approx([original[0], original[1] - 0.03])
-    assert actual_actions['P02']['points'][0] == p3['points'][-1]
-    p7, p6 = actual_actions['P07'], actual_actions['P06']
-    old7, old6 = expected_actions['P07'], expected_actions['P06']
-    assert p7['points'][0] == old7['points'][0]
-    displacement = [a - b for a, b in zip(p7['points'][-1], old7['points'][-1])]
-    assert displacement == pytest.approx([0, 0.03])
-    assert p6['points'][0] == p7['points'][-1]
-    assert p6['points'][-1] == old6['points'][-1]
-    assert p7['heading_rad'] == old7['heading_rad']
-    assert p6['heading_rad'] == old6['heading_rad']
-    checked = load_scene(ROOT / 'waypoints/reverse_waypoints_real.yaml', 4)
+    path = ROOT / 'waypoints/reverse_waypoints_real.yaml'
+    assert (
+        hashlib.sha256(path.read_bytes()).hexdigest()
+        == '3e841c52243fb16c378244132fa657a42c4fb04fa5984b2323206717e3fea064'
+    )
+    checked = load_scene(path, 4)
     assert len(checked['actions']) == 21
-    for action in checked['actions']:
-        if action['kind'] == 'path':
-            assert all(
-                math.dist(a, b) <= 0.05 + 1e-9
-                for a, b in zip(action['points'], action['points'][1:])
-            )
+    paths = [a for a in checked['actions'] if a['kind'] == 'path']
+    for left, right in zip(paths, paths[1:]):
+        assert left['points'][-1] == pytest.approx(right['points'][0])
+    for action in paths:
+        assert all(
+            math.dist(x, y) <= 0.05 + 1e-9 for x, y in zip(action['points'], action['points'][1:])
+        )
 
 
 def test_full_waypoint_order_and_explicit_positive_terminal(routes):
