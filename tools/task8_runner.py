@@ -149,6 +149,16 @@ def session(args, path, audit, actions, initialize):
             runner.exclusive()  # Allow DDS discovery before immutable publisher binding.
             runner.feedback_pause = RouteFeedbackPause(runner, emitter, cancellation.check)
             cancellation.check()
+            if getattr(args, 'p15_start', 'precise') == 'localized':
+                from task8_coarse_heading_runner import align
+                from task8_p15_start import load_reference, start_qualifier, validate_source
+
+                book_source = validate_source(args.source_book, args.source_bag, args.endpoint)
+                reference = load_reference(
+                    book_source, args.source_bag, args.endpoint, args.p15_observation
+                )
+                start_qualifier(reference, args.p15_start, args.p15_observation)
+                align(runner, reference, cancellation, audit, path, emitter)
             origin = initialize(
                 runner, args.source_book, args.source_bag, args.endpoint, cancellation
             )
