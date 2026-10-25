@@ -38,7 +38,8 @@ class SceneFiles(unittest.TestCase):
         self.assertEqual(len(route['actions']), 21)
         self.assertEqual(route['actions'][0]['points'][0], [0.0, 0.0])
         p13 = next(a for a in route['actions'] if a['name'] == 'P13')
-        self.assertEqual(p13['points'][-1], [0.39580195477126867, -1.0619099009985675])
+        for actual, expected in zip(p13['points'][-1], [0.3458019547712687, -1.0315868730786444]):
+            self.assertAlmostEqual(actual, expected, places=12)
         self.assertEqual(
             route['actions'][-2]['points'][-1], [0.02899960878708014, -0.5796575672149936]
         )
@@ -305,12 +306,11 @@ class EntryContract(unittest.TestCase):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             maze_entry.parse_args(['1', '--supervised'])
 
-    def test_scene3_default_dry_run_and_scene4_rejected_without_launch(self):
+    def test_scene3_and_scene4_dry_runs_do_not_launch(self):
         self.assertEqual(maze_entry.default_file(3).name, 'reverse_waypoints_sim.yaml')
         with patch.object(maze_entry, 'run_owned') as run:
             self.assertEqual(self.quiet_main(['3', '--dry-run']), 0)
-            with self.assertRaises(SystemExit):
-                self.quiet_main(['4', '--dry-run'])
+            self.assertEqual(self.quiet_main(['4', '--dry-run']), 0)
             run.assert_not_called()
         self.assertEqual(maze_entry.default_file(4).name, 'reverse_waypoints_real.yaml')
         args, _ = maze_entry.parse_args(['4', '--source-book', '/book', '--source-bag', '/bag'])

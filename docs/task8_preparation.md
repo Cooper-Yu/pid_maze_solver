@@ -113,3 +113,42 @@ Operator request: P10->P11 forward +3 cm; P11->P12 forward +3 cm. P12->P13 is st
 ## Reverse P06 adjustment after partial return
 
 Operator requested P06 body-back2cm with P07 fixed. At arrival heading+pi/2 this is P15-frame delta(0,-.02)m. P07 remains byte-equivalent; P07-to-P06 interpolates sideways and backward to the new endpoint, then P05 rejoins its original endpoint. Forward geometry is unchanged. Previous a95805b forward completed all21 actions/terminal turn; reverse completed P05 then signal2 cancellation, not full success. New reverse clearance still needs physical verification.
+
+## Official real-robot commands (2026-10-26 entry adaptation)
+
+After sourcing Humble and the built workspace, the course commands are:
+
+```bash
+ros2 run pid_maze_solver pid_maze_solver 2
+ros2 run pid_maze_solver pid_maze_solver 4
+```
+
+Scene2 keeps the reviewed defaults (.06 m/s, .20 rad/s, 1cm start-position tolerance,
+corner placement off). Scene4 now defaults to the full P01 route including its signed
+counterclockwise half-turn and the verified localized/front-heading-fixed-reference-side
+preparation. PID, route geometry, feedback source checks and drift protections are unchanged.
+
+Before the first bare scene4 run in an environment, register a successfully completed
+forward teaching book and its cleanly closed recorder bag once:
+
+```bash
+ros2 run pid_maze_solver task8_reference --source-book /absolute/forward.json --source-bag /absolute/evidence/bag/bag_0.db3 --forward-route /absolute/waypoints_real.yaml
+```
+
+The registry lives at $XDG_DATA_HOME/pid_maze_solver/p15_reference.json (default
+~/.local/share/pid_maze_solver/p15_reference.json). It is environment-local calibration,
+not a committed user-specific path. Registration checks all21 forward completions and
+terminal turn, matching nominal P15 endpoint and clean recorder closure. On each automatic
+load it checks hashes of book/events/bag/metadata/closure, then repeats the source contract.
+The existing runtime verifies current scan/TF mounting and fresh stopped feedback. This
+reference describes recorded walls, not a saved live odom origin; moved/reset robots must
+still pass current localization. Missing or changed evidence stops before backend launch.
+Keep registered evidence when cleaning old runs, or re-register another validated recording.
+
+Explicit paired --source-book/--source-bag remain available. --destination P13 remains an
+explicit prefix option; it no longer silently limits the bare official command. --dry-run
+prints a full route without requiring calibration or creating a controller. Independent
+recording and an external reservation deadline supervisor remain recommended for tests;
+their presence does not add options to the actual official solver command.
+
+Local checks are not official grading. Real bare-command verification is still required.

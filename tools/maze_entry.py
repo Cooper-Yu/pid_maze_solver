@@ -80,9 +80,9 @@ def parse_args(argv):
     parser.add_argument(
         '--p15-observation',
         choices=('two_wall_tls', 'front_heading_fixed_reference_side'),
-        default='two_wall_tls',
+        default='front_heading_fixed_reference_side',
     )
-    parser.add_argument('--p15-start', choices=('precise', 'localized'), default='precise')
+    parser.add_argument('--p15-start', choices=('precise', 'localized'), default='localized')
     parser.add_argument('--source-book', type=Path)
     parser.add_argument('--source-bag', type=Path)
     parser.add_argument('--forward-route', type=Path)
@@ -116,8 +116,8 @@ def parse_args(argv):
     if args.scene == 4:
         if args.supervised or args.corner_placement not in (None, 'off'):
             parser.error('Scene4 does not accept supervised/corner-placement overrides')
-        if not args.source_book or not args.source_bag:
-            parser.error('Scene4 requires explicit --source-book and --source-bag')
+        if bool(args.source_book) != bool(args.source_bag):
+            parser.error('Scene4 source book and bag must be supplied together')
     elif args.source_book or args.source_bag or args.forward_route:
         parser.error('P15 source options require scene4')
     if args.scene == 2 and args.corner_placement is None:
@@ -237,7 +237,11 @@ def main(argv=None):
         if args.scene == 4:
             from task8_route_model import select_reverse
 
-            payload = select_reverse(route, args.destination or 'P13', execute=not args.dry_run)
+            if not args.dry_run and args.source_book is None:
+                from task8_reference import resolve
+
+                args.source_book, args.source_bag = resolve(args.forward_route or default_file(2))
+            payload = select_reverse(route, args.destination or 'P01', execute=not args.dry_run)
         else:
             payload = (
                 select_real(route, args.destination or 'P15', execute=not args.dry_run)

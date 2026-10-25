@@ -58,3 +58,6 @@ install(FILES tools/task8_route_model.py tools/task8_p15_start.py tools/task8_p1
 install(FILES tools/task8_coarse_heading.py tools/task8_coarse_heading_runner.py DESTINATION lib/${PROJECT_NAME})
 
 install(FILES tools/task8_start_position.py DESTINATION lib/${PROJECT_NAME})
+
+install(PROGRAMS tools/task8_reference.py DESTINATION lib/${PROJECT_NAME} RENAME task8_reference)
+install(FILES tools/task8_reference.py DESTINATION lib/${PROJECT_NAME})

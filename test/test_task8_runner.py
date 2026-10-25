@@ -66,8 +66,7 @@ class Contracts(unittest.TestCase):
         self.route['test_until'] = 'P13'
         with self.assertRaises(ValueError):
             model.select_reverse(self.route, 'P01', True)
-        with self.assertRaises(SystemExit):
-            maze_entry.parse_args(['4'])
+        self.assertEqual(maze_entry.parse_args(['4'])[0].p15_start, 'localized')
         args, _ = maze_entry.parse_args(['4', '--source-book', '/book', '--source-bag', '/bag'])
         with patch.object(maze_entry, 'executable', return_value='/runner'):
             command = maze_entry.backend_command(args, Path('/route'), [])
@@ -96,7 +95,7 @@ class Contracts(unittest.TestCase):
             )
         run.assert_not_called()
         data = json.loads(output.call_args.args[0])
-        self.assertEqual(data['route']['actions'][-1]['name'], 'P13')
+        self.assertEqual(data['route']['actions'][-1]['name'], 'P01_after_turn')
 
     def test_missing_initializer_fails_before_ros(self):
         base = [
