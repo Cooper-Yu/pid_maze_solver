@@ -147,6 +147,11 @@ def session(args, path, audit, actions, initialize):
 
 def arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        '--p15-observation',
+        choices=('two_wall_tls', 'front_heading_fixed_reference_side'),
+        default='two_wall_tls',
+    )
     parser.add_argument('--route-json', type=Path, required=True)
     parser.add_argument('--source-book', type=Path, required=True)
     parser.add_argument('--source-bag', type=Path, required=True)
@@ -199,7 +204,15 @@ def main(argv=None):
                     actions=[asdict(a) for a in actions],
                 )
                 try:
-                    session(args, path, audit, actions, initialize)
+                    session(
+                        args,
+                        path,
+                        audit,
+                        actions,
+                        lambda *values: initialize(
+                            *values, observation_policy=args.p15_observation
+                        ),
+                    )
                 except (Exception, KeyboardInterrupt) as error:
                     emit(audit, 'route_failed', reason=str(error) or 'Cancelled', exit_code=2)
                     raise

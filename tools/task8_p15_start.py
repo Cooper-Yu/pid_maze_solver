@@ -74,7 +74,7 @@ def require_same_mount(reference, actual):
         raise ValueError('P15 laser mounting rotation changed')
 
 
-def load_reference(book, bag_path, endpoint):
+def load_reference(book, bag_path, endpoint, observation_policy='two_wall_tls'):
     from rclpy.serialization import deserialize_message
     from rclpy.time import Time
     from tf2_msgs.msg import TFMessage
@@ -95,7 +95,14 @@ def load_reference(book, bag_path, endpoint):
     expected = (reference['sensor_translation_m'], reference['sensor_rotation_xyzw'])
     require_same_mount(expected, mounting_values(mount))
     points, counts = scan_points(scan, mount)
-    walls = {s: asdict(fit_wall(points, counts, s)) for s in ('front', 'right')}
+    if observation_policy == 'front_heading_fixed_reference_side':
+        from task8_wall_observation import observe
+
+        walls = observe(points, counts)
+    elif observation_policy == 'two_wall_tls':
+        walls = {s: asdict(fit_wall(points, counts, s)) for s in ('front', 'right')}
+    else:
+        raise ValueError('Unknown P15 observation policy')
     return walls, source_pose(book, endpoint), expected, scan.header.frame_id
 
 
@@ -112,23 +119,37 @@ def current_sample(runner, reference):
         'base_link', scan_frame, Time.from_msg(scan.header.stamp)
     ).transform
     require_same_mount(mount, mounting_values(actual_mount))
-    current = {s: asdict(fit_wall(points, counts, s)) for s in ('front', 'right')}
+    if walls.get('_policy') == 'front_heading_fixed_reference_side':
+        from task8_wall_observation import observe, require_patch
+        from task8_front_side import estimate
+        from task8_p15_localization import register_walls
+
+        current = observe(points, counts, walls)
+        observed = estimate(walls, current, source)
+        relative = register_walls(walls, current)
+        require_patch(walls, current, relative)
+    else:
+        current = {s: asdict(fit_wall(points, counts, s)) for s in ('front', 'right')}
+        observed = nominal_estimate(walls, current, source)
     return dict(
         time=time.monotonic(),
         scan_stamp=runner.cached_stamp,
         odom_stamp=runner.stamp,
         odom=asdict(runner.latest[0]),
-        estimate=nominal_estimate(walls, current, source),
+        estimate=observed,
+        observation=current,
     )
 
 
-def initialize(runner, source_book, source_bag, endpoint, cancellation):
+def initialize(
+    runner, source_book, source_bag, endpoint, cancellation, observation_policy='two_wall_tls'
+):
     """Wait up to 20s for qualified fresh stopped batches; never publish velocity."""
     from action_plan import Pose
 
     cancellation.check()
     book = validate_source(source_book, source_bag, endpoint)
-    reference = load_reference(book, source_bag, endpoint)
+    reference = load_reference(book, source_bag, endpoint, observation_policy)
     pause = runner.feedback_pause
     samples = deque(maxlen=12)
     seen = None
@@ -164,7 +185,9 @@ def initialize(runner, source_book, source_bag, endpoint, cancellation):
             continue
         try:
             sample = current_sample(runner, reference)
-            if sample['scan_stamp'] == seen:
+            if sample['scan_stamp'] == seen or (
+                samples and sample['time'] - samples[-1]['time'] < 0.10
+            ):
                 continue
             seen = sample['scan_stamp']
             samples.append(sample)
@@ -183,10 +206,12 @@ def initialize(runner, source_book, source_bag, endpoint, cancellation):
         emitter(
             'p15_start_verified',
             sample_count=len(samples),
+            observation=sample.get('observation'),
             estimate=estimate,
             origin=origin,
             source_book=str(source_book),
-            method='two_wall_current_epoch',
+            method=observation_policy + '_current_epoch',
+            independent_heading_sources=1 if observation_policy != 'two_wall_tls' else 2,
             motion_published=False,
         )
         return Pose(**origin)
