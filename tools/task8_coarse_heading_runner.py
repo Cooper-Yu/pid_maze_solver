@@ -39,7 +39,7 @@ def collect(runner, reference, cancellation, check_stage, seconds=20):
                 'base_link', reference[3], Time.from_msg(scan.header.stamp)
             ).transform
             require_same_mount(reference[2], mounting_values(mount))
-            row = observe(points, counts, reference[0], reference[1]['yaw'])
+            row = observe(points, counts, reference[0])
         except (RuntimeError, ValueError) as error:
             samples.clear()
             reason = str(error)

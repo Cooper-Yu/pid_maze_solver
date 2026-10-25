@@ -56,3 +56,5 @@ install(PROGRAMS tools/task8_runner.py DESTINATION lib/${PROJECT_NAME} RENAME ta
 install(FILES tools/task8_route_model.py tools/task8_p15_start.py tools/task8_p15_localization.py tools/task8_p15_probe.py tools/task8_start_correction.py tools/task8_start_correct_runner.py tools/task8_front_side.py tools/task8_wall_observation.py tools/task8_wall_servo.py tools/task8_wall_servo_runner.py DESTINATION lib/${PROJECT_NAME})
 
 install(FILES tools/task8_coarse_heading.py tools/task8_coarse_heading_runner.py DESTINATION lib/${PROJECT_NAME})
+
+install(FILES tools/task8_start_position.py DESTINATION lib/${PROJECT_NAME})

@@ -47,7 +47,7 @@ def test_large_heading_has_correct_turn_sign_without_loosening_regular_fit(degre
     p, c = corridor(math.radians(degrees))
     oldp, oldc = corridor(0)
     reference = {'right': fit_side(oldp, oldc, 'right')}
-    result = observe(p, c, reference, 0)
+    result = observe(p, c, reference)
     assert result['correction'] == pytest.approx(-math.radians(degrees), abs=1e-8)
     if abs(degrees) > 12:
         with pytest.raises(ValueError):
@@ -68,10 +68,11 @@ def test_disagreeing_sides_and_large_correction_are_rejected(monkeypatch):
         lambda p, c, s: dict(wall, angle=0.3 if s == 'right' else 0.5),
     )
     with pytest.raises(ValueError, match='disagree'):
-        observe([], {}, {'right': wall}, 0)
+        observe([], {}, {'right': wall})
     monkeypatch.setattr('task8_coarse_heading.fit_side', lambda *a: dict(wall))
+    monkeypatch.setattr('task8_coarse_heading.fit_side', lambda *a: dict(wall, angle=0.5))
     with pytest.raises(ValueError, match='25deg'):
-        observe([], {}, {'right': dict(wall, angle=-0.2)}, 0)
+        observe([], {}, {'right': dict(wall, angle=-0.2)})
 
 
 def batch():
@@ -97,7 +98,7 @@ def test_acquisition_rejects_invalid_batches(fault):
     if fault == 'stale':
         rows[-1]['time'] += 0.4
     if fault == 'unstable':
-        rows[-1]['correction'] += 0.05
+        rows[-1]['correction'] += 0.08
     if fault == 'nan':
         rows[-1]['correction'] = float('nan')
     with pytest.raises(ValueError):
@@ -109,7 +110,7 @@ def test_batch_and_source_residual_not_rebased():
     p, c = corridor(-0.2)
     oldp, oldc = corridor(0)
     r = {'right': fit_side(oldp, oldc, 'right')}
-    assert observe(p, c, r, 0.01)['correction'] == pytest.approx(0.19)
+    assert observe(p, c, r)['correction'] == pytest.approx(0.2)
 
 
 def test_align_uses_only_existing_turn_pid_then_remeasures(monkeypatch, tmp_path):
@@ -203,6 +204,7 @@ def test_session_checks_policy_before_align_and_localizes_afterward(
             raise RuntimeError('coarse acquisition failed')
 
     monkeypatch.setattr(runtime, 'align', align)
+    monkeypatch.setattr('task8_start_position.adjust', lambda *a: order.append('position'))
 
     def initialize(*args):
         order.append('initialize')
@@ -226,5 +228,15 @@ def test_session_checks_policy_before_align_and_localizes_afterward(
         run.assert_not_called()
     expected = ['policy'] + ([] if invalid_policy else ['initialize', 'align'])
     if not invalid_policy and not align_failure:
-        expected.append('initialize')
+        expected.extend(['position', 'initialize'])
     assert order == expected + ['closed']
+
+
+def test_small_single_frame_noise_does_not_block_coarse_batch():
+    rows = batch()
+    rows[-1]['correction'] += math.radians(1.8)
+    assert qualify(rows) == pytest.approx(0.2)
+    for row in rows[6:]:
+        row['correction'] += math.radians(1.1)
+    with pytest.raises(ValueError):
+        qualify(rows)

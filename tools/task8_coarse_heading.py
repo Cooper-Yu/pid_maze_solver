@@ -31,8 +31,8 @@ def fit_side(points, counts, side):
     raise ValueError(reason)
 
 
-def observe(points, counts, reference, source_yaw):
-    """Two observed sides corroborate direction; recorded right wall anchors heading."""
+def observe(points, counts, reference):
+    """Acquire near-parallel corridor heading; final localization owns nominal heading."""
     from wall_geometry import support
 
     sides = {side: fit_side(points, counts, side) for side in ('left', 'right')}
@@ -47,7 +47,10 @@ def observe(points, counts, reference, source_yaw):
 
     if abs(offset(right) - offset(old)) > 0.10:
         raise ValueError('Coarse right wall outside 10cm reference neighborhood')
-    correction = math.remainder(right['angle'] - old['angle'] - source_yaw, 2 * math.pi)
+    correction = math.atan2(
+        math.sin(left['angle']) + math.sin(right['angle']),
+        math.cos(left['angle']) + math.cos(right['angle']),
+    )
     if not math.isfinite(correction) or abs(correction) > math.radians(25):
         raise ValueError('Coarse heading correction outside 25deg acquisition region')
     return dict(correction=correction, walls=sides)
@@ -74,8 +77,13 @@ def qualify(samples):
         ):
             raise ValueError('Robot moved during coarse heading acquisition')
         angles.append(sample['correction'])
-    if max(angles) - min(angles) > math.radians(1) or abs(
-        median(angles[:6]) - median(angles[6:])
-    ) > math.radians(0.5):
+    center = median(angles)
+    deviations = [abs(a - center) for a in angles]
+    if (
+        max(angles) - min(angles) > math.radians(3)
+        or median(deviations) > math.radians(0.5)
+        or sum(d <= math.radians(1) for d in deviations) < 10
+        or abs(median(angles[:6]) - median(angles[6:])) > math.radians(0.5)
+    ):
         raise ValueError('Coarse heading batches unstable')
     return median(angles)

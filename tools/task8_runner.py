@@ -137,6 +137,9 @@ def prepare_start(args, runner, cancellation, initialize, *, audit, path, emitte
                 raise
             emitter('p15_coarse_heading_required', reason=str(error))
             align(runner, reference, cancellation, audit, path, emitter)
+            from task8_start_position import adjust
+
+            adjust(runner, reference, cancellation, audit, path, emitter)
             origin = initialize(
                 runner, args.source_book, args.source_bag, args.endpoint, cancellation
             )
