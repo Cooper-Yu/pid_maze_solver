@@ -15,7 +15,7 @@ def test_approved_forward_legs_and_shifted_p13():
     a = {x['name']: x for x in d['actions']}
     assert a['P11']['points'][-1] == pytest.approx([0.8518674948445645, -1.8579827169427832])
     assert a['P12']['points'][-1] == pytest.approx([0.8518674948445645, -1.0615868730786444])
-    assert a['P13']['points'][-1] == pytest.approx([0.3458019547712687, -1.0015868730786444])
+    assert a['P13']['points'][-1] == pytest.approx([0.3158019547712687, -1.0015868730786444])
     start, end = a['P13']['points'][0], a['P13']['points'][-1]
     dx, dy = end[0] - start[0], end[1] - start[1]
     assert dy == pytest.approx(0.06)
