@@ -161,3 +161,8 @@ Operator approved another body-right 3 cm at forward P13 (total 6 cm from the st
 ### 2026-10-26 P13 additional forward 3 cm
 
 Operator approved another body-forward 3 cm from 3746b72. P13 endpoint is (0.3158019547712686, -1.0015868730786444), preserving total right shift 6 cm. P12 stays fixed; the approach changes gradually. P14 reconnects the unchanged endpoint. Reverse calibration, headings, tolerances and guards are unchanged. Cloud deployment and real-robot verification remain pending.
+
+
+### 2026-10-26 Cancel latest additional right 3 cm
+
+Operator cancels the additional right shift from 3746b72, retaining the additional forward 3 cm from 2c08382. P13 total right shift is again 3 cm; endpoint is (0.3158019547712686, -1.0315868730786444). P12 is fixed, approach remains gradual, and P14 reconnects its unchanged endpoint. Reverse calibration and guards remain unchanged. Cloud deployment and hardware verification are pending.
