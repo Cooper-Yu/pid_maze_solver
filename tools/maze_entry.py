@@ -13,6 +13,7 @@ import time
 
 import yaml
 from scene_route import load_scene, select_real
+from task6_auto_reference import run_recorded_forward
 
 
 def package_directory(package, kind):
@@ -132,7 +133,7 @@ def send_owned(process, signum):
         pass
 
 
-def run_owned(command):
+def run_owned(command, monitor=None):
     """Forward cancellation to this process group; never report cancellation as success."""
     cancelled = []
     previous = {}
@@ -143,10 +144,16 @@ def run_owned(command):
 
     for signum in (signal.SIGINT, signal.SIGTERM):
         previous[signum] = signal.signal(signum, cancel)
-    process, sent = None, set()
+    process, sent, monitor_error = None, set(), None
     try:
         process = subprocess.Popen(command, start_new_session=True)
         while True:
+            if monitor is not None and monitor_error is None and not cancelled:
+                try:
+                    monitor()
+                except Exception as error:
+                    monitor_error = error
+                    cancelled.append((signal.SIGINT, time.monotonic()))
             if cancelled:
                 signum, started = cancelled[0]
                 elapsed = time.monotonic() - started
@@ -158,6 +165,8 @@ def run_owned(command):
                     sent.add(requested)
             try:
                 result = process.wait(timeout=0.2)
+                if monitor_error is not None:
+                    raise monitor_error
                 return (
                     128 + cancelled[0][0] if cancelled else result if result >= 0 else 128 - result
                 )
@@ -275,8 +284,15 @@ def main(argv=None):
                 )
             command = backend_command(args, resolved, ros_args)
             print(f'SCENE={args.scene} source={path}; backend owns motion', flush=True)
+            if (
+                args.scene == 2
+                and payload['actions'][-1]['name'] == 'P15_after_turn'
+                and args.output is None
+                and not args.supervised
+            ):
+                return run_recorded_forward(command, path, run_owned, args.max_seconds)
             return run_owned(command)
-    except (OSError, ValueError, yaml.YAMLError) as error:
+    except (OSError, ValueError, RuntimeError, yaml.YAMLError) as error:
         print(f'SCENE_REJECTED: {error}', file=sys.stderr, flush=True)
         return 2
 

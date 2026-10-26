@@ -176,7 +176,15 @@ class ReverseSceneFiles(unittest.TestCase):
 
 class EntryContract(unittest.TestCase):
     def quiet_main(self, args):
-        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        with (
+            contextlib.redirect_stdout(io.StringIO()),
+            contextlib.redirect_stderr(io.StringIO()),
+            patch.object(
+                maze_entry,
+                'run_recorded_forward',
+                side_effect=lambda command, route, runner, seconds: runner(command),
+            ),
+        ):
             return maze_entry.main(args)
 
     def test_dry_run_and_unvalidated_full_route_never_launch(self):

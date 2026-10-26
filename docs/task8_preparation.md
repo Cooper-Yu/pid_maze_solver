@@ -166,3 +166,51 @@ Operator approved another body-forward 3 cm from 3746b72. P13 endpoint is (0.315
 ### 2026-10-26 Cancel latest additional right 3 cm
 
 Operator cancels the additional right shift from 3746b72, retaining the additional forward 3 cm from 2c08382. P13 total right shift is again 3 cm; endpoint is (0.3158019547712686, -1.0315868730786444). P12 is fixed, approach remains gradual, and P14 reconnects its unchanged endpoint. Reverse calibration and guards remain unchanged. Cloud deployment and hardware verification are pending.
+
+### Official scene2 automatic P15 reference
+
+For a full unsupervised scene2 run without `--output`, the official entry now owns
+one bounded evidence recorder. It waits for odometry, scan, image and static TF
+before launching the unchanged controller. Recorder failure, stale health, missing
+topic growth, cancellation or the 600-second default total limit stops the owned
+route. All original controller tolerances and feedback/4cm guards remain intact.
+
+After full P15 arrival and the terminal half-turn, the controller exits first;
+the recorder then closes. Only clean closed evidence and all 21 completed actions
+can atomically replace the P15 reference. A failed/partial/cancelled run preserves
+the previous reference. Registration failure returns nonzero even if motion
+completed; do not rerun motion blindly in that case. Inspect the printed evidence
+folder and perform registration alone after resolving the error.
+
+```bash
+ros2 run pid_maze_solver pid_maze_solver 2
+# Wait for P15_REFERENCE_REGISTERED_NO_MOTION and a successful process exit.
+# At P15, with teleop exited:
+ros2 run pid_maze_solver pid_maze_solver 4
+```
+
+Evidence is retained under `${XDG_DATA_HOME:-~/.local/share}/pid_maze_solver/runs/`.
+Do not delete the registered run while using scene4; the manifest hashes its files.
+Old references remain valid after failed runs only if the environment, mounting
+and P15 endpoint remain compatible; live scene4 still checks fresh lidar/TF/odom.
+
+Explicit `--output` selects externally managed evidence and skips automatic
+recording/registration. Existing supervisors already owning a recorder must pass
+`--output` and register only after closing their own recorder. Partial prefixes,
+`--supervised`, simulation scenes and all dry-runs do not enter this automatic
+flow. Never run the old external-recorder wrapper unchanged around the new bare
+scene2 command: it would contend for the recorder singleton and refuse motion.
+
+The packaged recorder/support files in `tools/reference_evidence/` are unchanged
+copies of distance_controller/tools/task6_ops/{evidence_recorder.py,common.py}
+from backend 202b5a5. They add no cloud dependencies beyond the declared ROS Humble
+Python runtime packages. Keep both copies in sync when the canonical recorder is
+changed, and review the diff. Recorder limits: 2Hz images, 256MiB, max_seconds+60s;
+no automatic deletion or rotation of retained calibration evidence.
+
+Local verification includes synthetic full-route registration/resolution tests,
+failure/cancellation/closure boundaries, an actual owned subprocess stop on
+monitor failure, and actual ROS recording on localhost-only domain187 with zero
+/cmd_vel messages. Synthetic route evidence does not certify maze completion,
+wall localization quality or real-robot success. Cloud full-route verification
+is still required after deployment.

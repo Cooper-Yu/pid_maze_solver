@@ -61,3 +61,11 @@ install(FILES tools/task8_start_position.py DESTINATION lib/${PROJECT_NAME})
 
 install(PROGRAMS tools/task8_reference.py DESTINATION lib/${PROJECT_NAME} RENAME task8_reference)
 install(FILES tools/task8_reference.py DESTINATION lib/${PROJECT_NAME})
+
+install(FILES tools/task6_auto_reference.py DESTINATION lib/${PROJECT_NAME})
+install(DIRECTORY tools/reference_evidence DESTINATION lib/${PROJECT_NAME} PATTERN __pycache__ EXCLUDE)
+
+if(BUILD_TESTING)
+ add_test(NAME test_auto_reference COMMAND ${Python3_EXECUTABLE} -m pytest -q ${CMAKE_CURRENT_SOURCE_DIR}/test/test_task6_auto_reference.py ${CMAKE_CURRENT_SOURCE_DIR}/test/test_task8_reference.py)
+ set_tests_properties(test_auto_reference PROPERTIES TIMEOUT 45)
+endif()
