@@ -12,7 +12,9 @@ source: 'd2ec797 taught path, explicit Task6 left 180-degree terminal turn at P1
   gradually from P12; reconnect unchanged P14 endpoint. Operator 2026-10-26 evening:
   P13 additional body-forward3cm, preserve total body-right6cm; gradual P12 approach
   and unchanged P14 endpoint. Operator cancels latest additional right3cm: total body-right
-  returns to3cm; retain latest additional forward3cm.'
+  returns to3cm; retain latest additional forward3cm. Operator 2026-10-26 evening:
+  P15 body-right3cm before terminal turn, gradual P14 approach; new P15 origin requires
+  fresh forward reference.'
 actions:
 - name: P02
   kind: path
@@ -449,19 +451,19 @@ actions:
   - - 0.37248777781822895
     - -0.5732626964522145
   - - 0.3241157355604417
-    - -0.5726779328250069
+    - -0.5683922185392926
   - - 0.2749297144315481
-    - -0.573841205223338
+    - -0.5652697766519095
   - - 0.22574369330265454
-    - -0.5750044776216691
+    - -0.5621473347645262
   - - 0.17655767217376095
-    - -0.5761677500200003
+    - -0.5590248928771432
   - - 0.1273716510448673
-    - -0.5773310224183315
+    - -0.55590245098976
   - - 0.07818562991597372
-    - -0.5784942948166625
+    - -0.5527800091023768
   - - 0.02899960878708014
-    - -0.5796575672149936
+    - -0.5496575672149936
 - name: P15_after_turn
   kind: turn
   heading_rad: 0.0

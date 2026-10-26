@@ -18,13 +18,13 @@ def routes():
     return forward, reverse_real(forward)
 
 
-def test_independently_calibrated_reverse_is_preserved():
+def test_calibrated_reverse_is_rebased_to_new_p15_origin():
     import hashlib
 
     path = ROOT / 'waypoints/reverse_waypoints_real.yaml'
     assert (
         hashlib.sha256(path.read_bytes()).hexdigest()
-        == '2da3d8f0ac0ef4db8990f482bb6a8f431260cd528dda5785c86fcd9fe8ea4b3e'
+        == 'dc9170d75eb79c1eaaf63df4d4e6b68f4f229a1d643d148165185aa53773e1fa'
     )
     checked = load_scene(path, 4)
     assert len(checked['actions']) == 21
@@ -98,8 +98,8 @@ def test_generated_scene_four_loads_as_unvalidated_candidate(routes, tmp_path):
 def test_reverse_p06_back_two_cm_preserves_p07():
     checked = load_scene(ROOT / 'waypoints/reverse_waypoints_real.yaml', 4)
     a = {x['name']: x for x in checked['actions']}
-    assert a['P07']['points'][-1] == pytest.approx([1.794474074591732, -0.43481948161049566])
+    assert a['P07']['points'][-1] == pytest.approx([1.794474074591732, -0.46481948161049566])
     assert a['P06']['points'][0] == a['P07']['points'][-1]
-    assert a['P06']['points'][-1] == pytest.approx([1.36260869421031, -0.48874344821991076])
+    assert a['P06']['points'][-1] == pytest.approx([1.36260869421031, -0.5187434482199108])
     assert a['P05']['points'][0] == a['P06']['points'][-1]
     assert a['P06']['heading_rad'] == pytest.approx(math.pi / 2)

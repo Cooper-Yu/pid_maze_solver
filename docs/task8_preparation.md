@@ -214,3 +214,21 @@ monitor failure, and actual ROS recording on localhost-only domain187 with zero
 /cmd_vel messages. Synthetic route evidence does not certify maze completion,
 wall localization quality or real-robot success. Cloud full-route verification
 is still required after deployment.
+### 2026-10-26 P15 pre-turn body-right 3 cm candidate
+
+At the incoming P15 heading (-pi), body-right maps to +P01-y. P14 remains fixed;
+P14-to-P15 gradually shifts right 3 cm before the unchanged terminal half-turn.
+New P15 endpoint: (0.02899960878708014, -0.5496575672149936).
+
+The reverse route origin moves with P15. Its calibrated coordinates are rebased
+by y-=0.03, preserving the physical locations of all downstream tuned points;
+the first edge reconnects the shifted P15, with interpolation <=5 cm. This is
+not a regeneration from the current forward path. P13/P06 and other independent
+reverse adjustments retain their physical destinations.
+
+Old P15 references intentionally fail endpoint validation after this change.
+Run a successful NEW official scene2 first to record/register the new P15; then
+run scene4. Do not use the old historical reference registration command to
+bypass this check. This candidate has no real-robot acceptance yet and does not
+establish the cause of the earlier coarse-wall failure. No tolerances or guards
+are relaxed.

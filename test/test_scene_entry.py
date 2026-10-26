@@ -41,7 +41,7 @@ class SceneFiles(unittest.TestCase):
         for actual, expected in zip(p13['points'][-1], [0.3158019547712687, -1.0315868730786444]):
             self.assertAlmostEqual(actual, expected, places=12)
         self.assertEqual(
-            route['actions'][-2]['points'][-1], [0.02899960878708014, -0.5796575672149936]
+            route['actions'][-2]['points'][-1], [0.02899960878708014, -0.5496575672149936]
         )
 
     def test_guarded_prefix_and_explicit_validation(self):

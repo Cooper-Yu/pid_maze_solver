@@ -31,3 +31,18 @@ def test_approved_forward_legs_and_shifted_p13():
     )
     assert len(d['actions']) == 21
     assert d['actions'][-1]['name'] == 'P15_after_turn'
+
+
+def test_p15_pre_turn_shift_is_body_right_with_p14_fixed():
+    d = load_scene(ROOT / 'waypoints/waypoints_real.yaml', 2)
+    a = {x['name']: x for x in d['actions']}
+    p15 = a['P15']
+    old = [0.02899960878708014, -0.5796575672149936]
+    end = p15['points'][-1]
+    dx, dy = end[0] - old[0], end[1] - old[1]
+    c, s = math.cos(p15['heading_rad']), math.sin(p15['heading_rad'])
+    assert c * dx + s * dy == pytest.approx(0.0, abs=1e-12)
+    assert s * dx - c * dy == pytest.approx(0.03)
+    assert p15['points'][0] == pytest.approx([0.37248777781822895, -0.5732626964522145])
+    assert a['P14']['points'][-1] == pytest.approx(p15['points'][0])
+    assert a['P15_after_turn']['heading_rad'] == 0.0

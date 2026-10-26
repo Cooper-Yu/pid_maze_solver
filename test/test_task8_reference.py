@@ -137,3 +137,15 @@ def test_missing_default_reference_never_launches(evidence, monkeypatch):
 def test_half_explicit_reference_rejects():
     with pytest.raises(SystemExit):
         maze_entry.parse_args(['4', '--source-book', '/only-book'])
+
+
+def test_old_p15_reference_cannot_replace_new_endpoint_reference(evidence):
+    book, bag, route, registry = evidence
+    registry.parent.mkdir()
+    registry.write_text('existing reference')
+    events = [json.loads(x) for x in book.with_suffix('.jsonl').read_text().splitlines()]
+    events[0]['actions'][-2]['points'][-1][1] -= 0.03
+    book.with_suffix('.jsonl').write_text('\n'.join(json.dumps(x) for x in events))
+    with pytest.raises(ValueError, match='P15 nominal endpoint differs'):
+        ref.register(book, bag, route, registry)
+    assert registry.read_text() == 'existing reference'
